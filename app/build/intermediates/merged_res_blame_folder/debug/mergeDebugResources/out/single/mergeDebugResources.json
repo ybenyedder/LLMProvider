@@ -1,50 +1,46 @@
 [
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-mdpi_ic_launcher.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-mdpi/ic_launcher.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/layout_activity_main.xml.flat",
+        "source": "com.tree4five.gguf.app-main-33:/layout/activity_main.xml"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/layout_activity_main.xml.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/layout/activity_main.xml"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-hdpi_ic_launcher_round.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-hdpi/ic_launcher_round.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-hdpi_ic_launcher.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-hdpi/ic_launcher.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-xxxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-mdpi_ic_launcher_round.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-mdpi/ic_launcher_round.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-xxhdpi/ic_launcher.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xxxhdpi_ic_launcher.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xxxhdpi/ic_launcher.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-hdpi/ic_launcher.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-hdpi_ic_launcher_round.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-hdpi/ic_launcher_round.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-xhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xhdpi_ic_launcher_round.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xhdpi/ic_launcher_round.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-xxhdpi_ic_launcher_round.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-xxhdpi/ic_launcher_round.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xxhdpi_ic_launcher.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xxhdpi/ic_launcher.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-xxxhdpi/ic_launcher.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xhdpi_ic_launcher.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xhdpi/ic_launcher.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-mdpi/ic_launcher.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xxhdpi_ic_launcher_round.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xxhdpi/ic_launcher_round.png"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-mdpi_ic_launcher_round.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-mdpi/ic_launcher_round.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xxxhdpi_ic_launcher_round.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xxxhdpi/ic_launcher_round.png"
-    },
-    {
-        "merged": "com.example.gguf.app-debug-31:/layout_activity_main.xml.flat",
-        "source": "com.example.gguf.app-main-33:/layout/activity_main.xml"
+        "merged": "com.tree4five.gguf.app-debug-31:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.tree4five.gguf.app-main-33:/mipmap-xhdpi/ic_launcher.png"
     }
 ]

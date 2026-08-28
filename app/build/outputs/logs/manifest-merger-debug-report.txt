@@ -47,7 +47,7 @@ MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/p
 MERGED from [androidx.print:print:1.0.0] /home/pc/.gradle/caches/transforms-4/0f99d83ea4e3b3634152d6ba1d19d6c7/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/pc/.gradle/caches/transforms-4/6aff50510d5d42e61fd9c14e9b573f47/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:17:1-22:12
 	package
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:3:5-31
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:3:5-33
 		INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml
 	android:versionName
 		INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml
@@ -101,7 +101,7 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/pc/.gradle/caches/tra
 	android:supportsRtl
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:17:9-35
 	android:label
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-37
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-47
 	android:roundIcon
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:16:9-54
 	android:icon
@@ -112,7 +112,7 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/pc/.gradle/caches/tra
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:18:9-47
 	android:name
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:12:9-28
-activity#com.example.gguf.MainActivity
+activity#com.tree4five.gguf.MainActivity
 ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:20:9-27:20
 	android:exported
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:22:13-36
@@ -128,7 +128,7 @@ category#android.intent.category.LAUNCHER
 ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:25:17-77
 	android:name
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:25:27-74
-service#com.example.gguf.LLMInferenceService
+service#com.tree4five.gguf.LLMInferenceService
 ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:29:9-37:19
 	android:exported
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:31:13-36
@@ -142,12 +142,12 @@ ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:33:13-115
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:33:83-112
 	android:name
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:33:23-82
-intent-filter#action:name:com.example.gguf.ACTION_LLM_SERVICE
+intent-filter#action:name:com.tree4five.gguf.ACTION_LLM_SERVICE
 ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:34:13-36:29
-action#com.example.gguf.ACTION_LLM_SERVICE
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:17-78
+action#com.tree4five.gguf.ACTION_LLM_SERVICE
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:17-80
 	android:name
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:25-75
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:25-77
 uses-sdk
 INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml
@@ -268,7 +268,7 @@ ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b
 		ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
 	android:name
 		ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
-permission#com.example.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+permission#com.tree4five.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
 	android:protectionLevel
 		ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
@@ -278,7 +278,7 @@ uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
 	android:name
 		ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
-uses-permission#com.example.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission#com.tree4five.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
 	android:name
 		ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:26:22-94

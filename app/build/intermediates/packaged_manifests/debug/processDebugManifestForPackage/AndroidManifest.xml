@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.gguf"
+    package="com.tree4five.gguf"
     android:versionCode="1"
     android:versionName="1.0" >
 
@@ -15,24 +15,24 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <permission
-        android:name="com.example.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+        android:name="com.tree4five.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
         android:protectionLevel="signature" />
 
-    <uses-permission android:name="com.example.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+    <uses-permission android:name="com.tree4five.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
 
     <application
-        android:name="com.example.gguf.App"
+        android:name="com.tree4five.gguf.App"
         android:allowBackup="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"
         android:debuggable="true"
         android:extractNativeLibs="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="LLM Provider"
+        android:label="Tree4Five LLM Provider"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Tree4Five" >
         <activity
-            android:name="com.example.gguf.MainActivity"
+            android:name="com.tree4five.gguf.MainActivity"
             android:exported="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -42,7 +42,7 @@
         </activity>
 
         <service
-            android:name="com.example.gguf.LLMInferenceService"
+            android:name="com.tree4five.gguf.LLMInferenceService"
             android:exported="true"
             android:foregroundServiceType="specialUse" >
             <property
@@ -50,13 +50,13 @@
                 android:value="LLM_INFERENCE" />
 
             <intent-filter>
-                <action android:name="com.example.gguf.ACTION_LLM_SERVICE" />
+                <action android:name="com.tree4five.gguf.ACTION_LLM_SERVICE" />
             </intent-filter>
         </service>
 
         <provider
             android:name="androidx.startup.InitializationProvider"
-            android:authorities="com.example.gguf.androidx-startup"
+            android:authorities="com.tree4five.gguf.androidx-startup"
             android:exported="false" >
             <meta-data
                 android:name="androidx.emoji2.text.EmojiCompatInitializer"

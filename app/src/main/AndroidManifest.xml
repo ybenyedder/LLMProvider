@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.gguf">
+    package="com.tree4five.gguf">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -12,7 +12,7 @@
         android:name=".App"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="LLM Provider"
+        android:label="Tree4Five LLM Provider"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Tree4Five">
@@ -32,7 +32,7 @@
             android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="LLM_INFERENCE" />
             <intent-filter>
-                <action android:name="com.example.gguf.ACTION_LLM_SERVICE" />
+                <action android:name="com.tree4five.gguf.ACTION_LLM_SERVICE" />
             </intent-filter>
         </service>
     </application>

@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.gguf.app-mergeDebugResources-29:/values-en-rGB/values-en-rGB.xml",
+            "outputFile": "com.tree4five.gguf.app-mergeDebugResources-29:/values-en-rGB/values-en-rGB.xml",
             "map": [
                 {
                     "source": "/home/pc/.gradle/caches/transforms-4/1c03fc8045c7f6397147510cb5b656cc/transformed/appcompat-1.6.1/res/values-en-rGB/values-en-rGB.xml",

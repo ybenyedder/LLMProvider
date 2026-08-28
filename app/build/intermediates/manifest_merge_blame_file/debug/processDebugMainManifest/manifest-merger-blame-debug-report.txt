@@ -1,6 +1,6 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-3    package="com.example.gguf"
+3    package="com.tree4five.gguf"
 4    android:versionCode="1"
 5    android:versionName="1.0" >
 6
@@ -26,18 +26,18 @@
 16
 17    <permission
 17-->[androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
-18        android:name="com.example.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+18        android:name="com.tree4five.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
 18-->[androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
 19        android:protectionLevel="signature" />
 19-->[androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
 20
-21    <uses-permission android:name="com.example.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+21    <uses-permission android:name="com.tree4five.gguf.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
 21-->[androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
 21-->[androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
 22
 23    <application
 23-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:11:5-38:19
-24        android:name="com.example.gguf.App"
+24        android:name="com.tree4five.gguf.App"
 24-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:12:9-28
 25        android:allowBackup="true"
 25-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:13:9-35
@@ -47,8 +47,8 @@
 28        android:extractNativeLibs="false"
 29        android:icon="@mipmap/ic_launcher"
 29-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:14:9-43
-30        android:label="LLM Provider"
-30-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-37
+30        android:label="Tree4Five LLM Provider"
+30-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-47
 31        android:roundIcon="@mipmap/ic_launcher_round"
 31-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:16:9-54
 32        android:supportsRtl="true"
@@ -57,7 +57,7 @@
 33-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:18:9-47
 34        <activity
 34-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:20:9-27:20
-35            android:name="com.example.gguf.MainActivity"
+35            android:name="com.tree4five.gguf.MainActivity"
 35-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:21:13-41
 36            android:exported="true" >
 36-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:22:13-36
@@ -75,7 +75,7 @@
 43
 44        <service
 44-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:29:9-37:19
-45            android:name="com.example.gguf.LLMInferenceService"
+45            android:name="com.tree4five.gguf.LLMInferenceService"
 45-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:30:13-48
 46            android:exported="true"
 46-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:31:13-36
@@ -90,9 +90,9 @@
 51
 52            <intent-filter>
 52-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:34:13-36:29
-53                <action android:name="com.example.gguf.ACTION_LLM_SERVICE" />
-53-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:17-78
-53-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:25-75
+53                <action android:name="com.tree4five.gguf.ACTION_LLM_SERVICE" />
+53-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:17-80
+53-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:25-77
 54            </intent-filter>
 55        </service>
 56
@@ -100,7 +100,7 @@
 57-->[androidx.emoji2:emoji2:1.2.0] /home/pc/.gradle/caches/transforms-4/453f9071a98fa8d929c151eed1910610/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
 58            android:name="androidx.startup.InitializationProvider"
 58-->[androidx.emoji2:emoji2:1.2.0] /home/pc/.gradle/caches/transforms-4/453f9071a98fa8d929c151eed1910610/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
-59            android:authorities="com.example.gguf.androidx-startup"
+59            android:authorities="com.tree4five.gguf.androidx-startup"
 59-->[androidx.emoji2:emoji2:1.2.0] /home/pc/.gradle/caches/transforms-4/453f9071a98fa8d929c151eed1910610/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
 60            android:exported="false" >
 60-->[androidx.emoji2:emoji2:1.2.0] /home/pc/.gradle/caches/transforms-4/453f9071a98fa8d929c151eed1910610/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37

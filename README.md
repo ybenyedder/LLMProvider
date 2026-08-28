@@ -1,6 +1,6 @@
-# LLM Provider (tree4five) 🌲5️⃣
+# Tree4Five LLM Provider 🌲5️⃣
 
-**LLM Provider** is a local LLM server designed specifically for Android. It acts as an on-device AI backend for *other* Android applications that want to run Large Language Models (LLMs) locally without relying on cloud APIs. By exposing a unified AIDL service, it allows any client application on your device to seamlessly generate text and access powerful AI capabilities completely offline and with absolute privacy.
+**Tree4Five LLM Provider** is a local LLM server designed specifically for Android. It acts as an on-device AI backend for *other* Android applications that want to run Large Language Models (LLMs) locally without relying on cloud APIs. By exposing a unified AIDL service, it allows any client application on your device to seamlessly generate text and access powerful AI capabilities completely offline and with absolute privacy.
 
 ## Features
 - **Local On-Device AI:** Runs GGUF models directly on your Android device using `java-llama.cpp`. No cloud, complete privacy.
@@ -27,7 +27,7 @@ To run the automated tests:
 ```
 
 ## Integrating into your app
-Since this runs as an AIDL service, you can bind to `com.example.gguf.ACTION_LLM_SERVICE` from your own apps and pass the `ILLMCallback` stub to receive token streams asynchronously!
+Since this runs as an AIDL service, you can bind to `com.tree4five.gguf.ACTION_LLM_SERVICE` from your own apps and pass the `ILLMCallback` stub to receive token streams asynchronously!
 
 ## License
 MIT

@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.gguf"
+    namespace = "com.tree4five.gguf"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.gguf"
+        applicationId = "com.tree4five.gguf"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

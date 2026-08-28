@@ -1,10 +1,6 @@
 [
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-mergeDebugResources-30:/layout/activity_main.xml",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/layout/activity_main.xml"
-    },
-    {
-        "merged": "com.example.gguf.app-mergeDebugResources-30:/layout/activity_main.xml",
-        "source": "com.example.gguf.app-main-33:/layout/activity_main.xml"
+        "merged": "com.tree4five.gguf.app-mergeDebugResources-30:/layout/activity_main.xml",
+        "source": "com.tree4five.gguf.app-main-33:/layout/activity_main.xml"
     }
 ]
