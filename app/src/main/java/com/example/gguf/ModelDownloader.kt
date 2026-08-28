@@ -14,9 +14,6 @@ object ModelDownloader {
 
     /**
      * Télécharge un modèle GGUF depuis HuggingFace (ou autre URL) vers le stockage local.
-     * @param url L'URL directe du fichier .gguf (ex: https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.Q4_K_M.gguf)
-     * @param destinationFile Le fichier de destination local
-     * @param onProgress Callback de progression (0 à 100)
      */
     suspend fun downloadModel(
         url: String, 
@@ -24,19 +21,31 @@ object ModelDownloader {
         onProgress: (Int) -> Unit
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val connection = URL(url).openConnection() as HttpURLConnection
+            var connection = URL(url).openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = true // Important for HuggingFace
             connection.connect()
+            
+            // Handle redirect if needed (sometimes HttpURLConnection needs manual redirect handling)
+            var redirectCount = 0
+            while ((connection.responseCode == HttpURLConnection.HTTP_MOVED_TEMP || 
+                    connection.responseCode == HttpURLConnection.HTTP_MOVED_PERM || 
+                    connection.responseCode == HttpURLConnection.HTTP_SEE_OTHER) && redirectCount < 5) {
+                val newUrl = connection.getHeaderField("Location")
+                connection = URL(newUrl).openConnection() as HttpURLConnection
+                connection.connect()
+                redirectCount++
+            }
 
             if (connection.responseCode != HttpURLConnection.HTTP_OK) {
                 Log.e(TAG, "Erreur serveur HTTP ${connection.responseCode}")
                 return@withContext false
             }
 
-            val fileLength = connection.contentLength
+            val fileLength = connection.contentLengthLong // Handle > 2GB files
             val input = connection.inputStream
             val output = FileOutputStream(destinationFile)
 
-            val data = ByteArray(4096)
+            val data = ByteArray(65536) // Increased buffer size to 64KB for faster downloads
             var total: Long = 0
             var count: Int
             

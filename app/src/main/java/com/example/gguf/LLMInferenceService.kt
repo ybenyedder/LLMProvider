@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -22,18 +23,21 @@ import java.io.File
 
 class LLMInferenceService : Service() {
 
-    private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var llamaModel: LlamaModel? = null
 
     companion object {
         private const val TAG = "LLMInferenceService"
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "LLM_SERVICE_CHANNEL"
-        private const val MODEL_PATH = "/data/local/tmp/model.gguf" // Mettre à jour avec le chemin réel
     }
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Essential for java-llama.cpp to extract its native libraries on Android
+        System.setProperty("de.kherud.llama.tmpdir", applicationContext.cacheDir.absolutePath)
+        
         startForegroundService()
         initializeModel()
     }
@@ -53,12 +57,27 @@ class LLMInferenceService : Service() {
 
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Service d'Inférence LLM")
-            .setContentText("Le modèle GGUF est chargé et prêt.")
-            .setSmallIcon(android.R.drawable.ic_menu_info_details) // À remplacer par votre icône
+            .setContentText("Chargement du modèle GGUF...")
+            .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setOngoing(true)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun updateNotification(text: String) {
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Service d'Inférence LLM")
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_menu_info_details)
+            .setOngoing(true)
+            .build()
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun initializeModel() {
@@ -67,47 +86,46 @@ class LLMInferenceService : Service() {
                 val modelFile = File(applicationContext.filesDir, "model.gguf")
                 if (!modelFile.exists()) {
                     Log.e(TAG, "Le fichier modèle est introuvable au chemin : ${modelFile.absolutePath}")
+                    updateNotification("Erreur: Modèle introuvable. Veuillez le télécharger.")
                     return@launch
                 }
 
                 val params = ModelParameters()
                     .setModelFilePath(modelFile.absolutePath)
-                    .setNGpuLayers(-1) // Décharger 100% des couches vers le GPU (Vulkan/CLBlast)
+                    .setNGpuLayers(-1)
                 
                 Log.d(TAG, "Initialisation du modèle avec accélération matérielle...")
                 llamaModel = LlamaModel(params)
                 Log.d(TAG, "Modèle chargé avec succès.")
+                updateNotification("Le modèle GGUF est chargé et prêt.")
             } catch (e: Exception) {
                 Log.e(TAG, "Erreur lors de l'initialisation du modèle GGUF", e)
+                updateNotification("Erreur lors de l'initialisation du modèle.")
             }
         }
     }
 
     private val binder = object : ILLMService.Stub() {
         override fun generateTextStream(prompt: String, callback: ILLMCallback) {
-            // Assigner la tâche au pool Default pour ne pas bloquer le thread Binder
             serviceScope.launch {
                 val model = llamaModel
                 if (model == null) {
-                    callback.onGenerationComplete("Erreur: Modèle non chargé.")
+                    callback.onGenerationComplete("Erreur: Modèle non chargé ou en cours de chargement. Veuillez patienter.")
                     return@launch
                 }
 
                 try {
                     val inferenceParams = InferenceParameters(prompt)
-                        .setNPredict(512) // Limite de tokens pour l'exemple
+                        .setNPredict(512)
 
                     val fullTextBuilder = java.lang.StringBuilder()
                     
-                    // Génération itérative
                     for (output in model.generate(inferenceParams)) {
                         val token = output.text
                         fullTextBuilder.append(token)
-                        // Stream en temps réel vers le client
                         callback.onTokenReceived(token)
                     }
                     
-                    // Indiquer la fin
                     callback.onGenerationComplete(fullTextBuilder.toString())
                 } catch (e: Exception) {
                     Log.e(TAG, "Erreur pendant la génération", e)
@@ -124,7 +142,7 @@ class LLMInferenceService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        llamaModel?.close() // Libérer proprement la mémoire native
+        llamaModel?.close()
         llamaModel = null
         Log.d(TAG, "Service détruit, modèle libéré.")
     }
