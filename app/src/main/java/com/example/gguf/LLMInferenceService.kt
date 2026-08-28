@@ -111,9 +111,13 @@ class LLMInferenceService : Service() {
         }
     }
 
+    @Volatile
+    private var isGenerationCancelled = false
+
     private val binder = object : ILLMService.Stub() {
         override fun generateTextStream(prompt: String, callback: ILLMCallback) {
             serviceScope.launch {
+                isGenerationCancelled = false
                 val model = llamaModel
                 if (model == null) {
                     callback.onGenerationComplete("Error: Model not loaded or currently loading. Please wait.")
@@ -121,12 +125,17 @@ class LLMInferenceService : Service() {
                 }
 
                 try {
-                    val inferenceParams = InferenceParameters(prompt)
+                    val formattedPrompt = PromptManager.formatPrompt(prompt)
+                    val inferenceParams = InferenceParameters(formattedPrompt)
                         .setNPredict(512)
 
                     val fullTextBuilder = java.lang.StringBuilder()
                     
                     for (output in model.generate(inferenceParams)) {
+                        if (isGenerationCancelled) {
+                            fullTextBuilder.append("\n[Generation Stopped]")
+                            break
+                        }
                         val token = output.text
                         fullTextBuilder.append(token)
                         callback.onTokenReceived(token)
@@ -138,6 +147,10 @@ class LLMInferenceService : Service() {
                     callback.onGenerationComplete("Error during generation : ${e.message}")
                 }
             }
+        }
+
+        override fun stopGeneration() {
+            isGenerationCancelled = true
         }
     }
 

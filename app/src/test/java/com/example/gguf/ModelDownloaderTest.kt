@@ -14,7 +14,7 @@ class ModelDownloaderTest {
             val tempFile = File.createTempFile("test_model", ".gguf")
             tempFile.deleteOnExit()
 
-            val success = ModelDownloader.downloadModel(badUrl, tempFile) { progress ->
+            val success = ModelDownloader.downloadOrCopyModel(badUrl, tempFile, null) { progress ->
                 // Do nothing
             }
 

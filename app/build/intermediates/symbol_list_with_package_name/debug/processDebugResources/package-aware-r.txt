@@ -3185,6 +3185,7 @@ id bounceStart
 id btnDownload
 id btnSelectFile
 id btnStartService
+id btnStop
 id btnTest
 id buttonPanel
 id cache_measures

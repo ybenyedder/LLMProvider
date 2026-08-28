@@ -13,6 +13,7 @@ color colorSurface
 id btnDownload
 id btnSelectFile
 id btnStartService
+id btnStop
 id btnTest
 id etModelUrl
 id etPrompt

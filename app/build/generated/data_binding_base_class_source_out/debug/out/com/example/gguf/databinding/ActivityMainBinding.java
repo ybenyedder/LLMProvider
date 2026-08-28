@@ -34,6 +34,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final MaterialButton btnStartService;
 
   @NonNull
+  public final MaterialButton btnStop;
+
+  @NonNull
   public final MaterialButton btnTest;
 
   @NonNull
@@ -59,14 +62,16 @@ public final class ActivityMainBinding implements ViewBinding {
 
   private ActivityMainBinding(@NonNull CoordinatorLayout rootView,
       @NonNull MaterialButton btnDownload, @NonNull MaterialButton btnSelectFile,
-      @NonNull MaterialButton btnStartService, @NonNull MaterialButton btnTest,
-      @NonNull TextInputEditText etModelUrl, @NonNull TextInputEditText etPrompt,
-      @NonNull LinearProgressIndicator progressBar, @NonNull AutoCompleteTextView spinnerModels,
-      @NonNull MaterialToolbar toolbar, @NonNull TextView tvOutput, @NonNull TextView tvProgress) {
+      @NonNull MaterialButton btnStartService, @NonNull MaterialButton btnStop,
+      @NonNull MaterialButton btnTest, @NonNull TextInputEditText etModelUrl,
+      @NonNull TextInputEditText etPrompt, @NonNull LinearProgressIndicator progressBar,
+      @NonNull AutoCompleteTextView spinnerModels, @NonNull MaterialToolbar toolbar,
+      @NonNull TextView tvOutput, @NonNull TextView tvProgress) {
     this.rootView = rootView;
     this.btnDownload = btnDownload;
     this.btnSelectFile = btnSelectFile;
     this.btnStartService = btnStartService;
+    this.btnStop = btnStop;
     this.btnTest = btnTest;
     this.etModelUrl = etModelUrl;
     this.etPrompt = etPrompt;
@@ -122,6 +127,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.btnStop;
+      MaterialButton btnStop = ViewBindings.findChildViewById(rootView, id);
+      if (btnStop == null) {
+        break missingId;
+      }
+
       id = R.id.btnTest;
       MaterialButton btnTest = ViewBindings.findChildViewById(rootView, id);
       if (btnTest == null) {
@@ -171,8 +182,8 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, btnDownload, btnSelectFile,
-          btnStartService, btnTest, etModelUrl, etPrompt, progressBar, spinnerModels, toolbar,
-          tvOutput, tvProgress);
+          btnStartService, btnStop, btnTest, etModelUrl, etPrompt, progressBar, spinnerModels,
+          toolbar, tvOutput, tvProgress);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

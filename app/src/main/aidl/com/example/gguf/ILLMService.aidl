@@ -7,4 +7,5 @@ interface ILLMService {
      * Starts text generation and streams the output to the provided callback.
      */
     oneway void generateTextStream(String prompt, ILLMCallback callback);
+    oneway void stopGeneration();
 }

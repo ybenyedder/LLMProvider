@@ -20,12 +20,12 @@
         "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xxxhdpi/ic_launcher.png"
     },
     {
-        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xhdpi_ic_launcher_round.png.flat",
-        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xhdpi/ic_launcher_round.png"
-    },
-    {
         "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-hdpi_ic_launcher_round.png.flat",
         "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-hdpi/ic_launcher_round.png"
+    },
+    {
+        "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xhdpi_ic_launcher_round.png.flat",
+        "source": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-main-33:/mipmap-xhdpi/ic_launcher_round.png"
     },
     {
         "merged": "/home/pc/.gradle/daemon/8.7/com.example.gguf.app-debug-31:/mipmap-xxhdpi_ic_launcher.png.flat",

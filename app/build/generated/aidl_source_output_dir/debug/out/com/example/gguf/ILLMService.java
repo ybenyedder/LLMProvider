@@ -11,6 +11,9 @@ public interface ILLMService extends android.os.IInterface
     @Override public void generateTextStream(java.lang.String prompt, com.example.gguf.ILLMCallback callback) throws android.os.RemoteException
     {
     }
+    @Override public void stopGeneration() throws android.os.RemoteException
+    {
+    }
     @Override
     public android.os.IBinder asBinder() {
       return null;
@@ -68,6 +71,11 @@ public interface ILLMService extends android.os.IInterface
           this.generateTextStream(_arg0, _arg1);
           break;
         }
+        case TRANSACTION_stopGeneration:
+        {
+          this.stopGeneration();
+          break;
+        }
         default:
         {
           return super.onTransact(code, data, reply, flags);
@@ -104,10 +112,23 @@ public interface ILLMService extends android.os.IInterface
           _data.recycle();
         }
       }
+      @Override public void stopGeneration() throws android.os.RemoteException
+      {
+        android.os.Parcel _data = android.os.Parcel.obtain();
+        try {
+          _data.writeInterfaceToken(DESCRIPTOR);
+          boolean _status = mRemote.transact(Stub.TRANSACTION_stopGeneration, _data, null, android.os.IBinder.FLAG_ONEWAY);
+        }
+        finally {
+          _data.recycle();
+        }
+      }
     }
     static final int TRANSACTION_generateTextStream = (android.os.IBinder.FIRST_CALL_TRANSACTION + 0);
+    static final int TRANSACTION_stopGeneration = (android.os.IBinder.FIRST_CALL_TRANSACTION + 1);
   }
   public static final java.lang.String DESCRIPTOR = "com.example.gguf.ILLMService";
   /** Starts text generation and streams the output to the provided callback. */
   public void generateTextStream(java.lang.String prompt, com.example.gguf.ILLMCallback callback) throws android.os.RemoteException;
+  public void stopGeneration() throws android.os.RemoteException;
 }

@@ -138,6 +138,16 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please enter a prompt", Toast.LENGTH_SHORT).show()
             }
         }
+
+        binding.btnStop.setOnClickListener {
+            if (isBound && llmService != null) {
+                try {
+                    llmService?.stopGeneration()
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error stopping generation", e)
+                }
+            }
+        }
     }
 
     private fun updateModelList() {

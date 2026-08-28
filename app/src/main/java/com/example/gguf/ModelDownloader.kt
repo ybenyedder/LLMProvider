@@ -22,7 +22,7 @@ object ModelDownloader {
     suspend fun downloadOrCopyModel(
         sourceUri: String, 
         destinationFile: File, 
-        context: Context,
+        context: Context?,
         onProgress: (Int) -> Unit
     ): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -54,13 +54,13 @@ object ModelDownloader {
                 }
                 sourceUri.startsWith("content://") -> {
                     val uri = Uri.parse(sourceUri)
-                    context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    context?.contentResolver?.query(uri, null, null, null, null)?.use { cursor ->
                         val sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
                         if (cursor.moveToFirst() && sizeIndex != -1) {
                             fileLength = cursor.getLong(sizeIndex)
                         }
                     }
-                    input = context.contentResolver.openInputStream(uri) ?: throw Exception("Cannot open content URI")
+                    input = context?.contentResolver?.openInputStream(uri) ?: throw Exception("Cannot open content URI")
                 }
                 sourceUri.startsWith("file://") -> {
                     val file = File(Uri.parse(sourceUri).path!!)
