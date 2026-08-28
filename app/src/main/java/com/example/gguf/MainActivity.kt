@@ -6,19 +6,18 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.gguf.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,14 +27,7 @@ class MainActivity : AppCompatActivity() {
 
     private var llmService: ILLMService? = null
     private var isBound = false
-
-    private lateinit var btnDownload: Button
-    private lateinit var progressBar: ProgressBar
-    private lateinit var tvProgress: TextView
-    private lateinit var btnStartService: Button
-    private lateinit var etPrompt: EditText
-    private lateinit var btnTest: Button
-    private lateinit var tvOutput: TextView
+    private lateinit var binding: ActivityMainBinding
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -50,45 +42,58 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val selectFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            // Use the selected URI (content://) as the source
+            binding.etModelUrl.setText(it.toString())
+            Toast.makeText(this, "File selected! Tap Fetch to copy it.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         checkPermissions()
 
-        btnDownload = findViewById(R.id.btnDownload)
-        progressBar = findViewById(R.id.progressBar)
-        tvProgress = findViewById(R.id.tvProgress)
-        btnStartService = findViewById(R.id.btnStartService)
-        etPrompt = findViewById(R.id.etPrompt)
-        btnTest = findViewById(R.id.btnTest)
-        tvOutput = findViewById(R.id.tvOutput)
-
         val modelFile = File(filesDir, "model.gguf")
 
-        btnDownload.setOnClickListener {
-            val url = "https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
-            progressBar.visibility = View.VISIBLE
-            tvProgress.visibility = View.VISIBLE
-            btnDownload.isEnabled = false
+        binding.btnDownload.setOnClickListener {
+            val url = binding.etModelUrl.text.toString().trim()
+            if (url.isEmpty()) {
+                Toast.makeText(this, "Please enter a URL or select a file", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            binding.progressBar.visibility = View.VISIBLE
+            binding.tvProgress.visibility = View.VISIBLE
+            binding.btnDownload.isEnabled = false
+            binding.btnSelectFile.isEnabled = false
 
             CoroutineScope(Dispatchers.Main).launch {
-                val success = ModelDownloader.downloadModel(url, modelFile) { progress ->
-                    progressBar.progress = progress
-                    tvProgress.text = "${progress}%"
+                val success = ModelDownloader.downloadOrCopyModel(url, modelFile, this@MainActivity) { progress ->
+                    binding.progressBar.progress = progress
+                    binding.tvProgress.text = "${progress}%"
                 }
                 if (success) {
-                    Toast.makeText(this@MainActivity, "Download complete", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Model setup complete", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(this@MainActivity, "Download failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Failed to fetch/copy model", Toast.LENGTH_SHORT).show()
                 }
-                btnDownload.isEnabled = true
-                progressBar.visibility = View.GONE
-                tvProgress.visibility = View.GONE
+                binding.btnDownload.isEnabled = true
+                binding.btnSelectFile.isEnabled = true
+                binding.progressBar.visibility = View.GONE
+                binding.tvProgress.visibility = View.GONE
             }
         }
 
-        btnStartService.setOnClickListener {
+        binding.btnSelectFile.setOnClickListener {
+            // Select any file (preferably .gguf, but */* is safer across file managers)
+            selectFileLauncher.launch(arrayOf("*/*"))
+        }
+
+        binding.btnStartService.setOnClickListener {
             val intent = Intent(this, LLMInferenceService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
@@ -98,11 +103,13 @@ class MainActivity : AppCompatActivity() {
             bindService(intent, connection, Context.BIND_AUTO_CREATE)
         }
 
-        btnTest.setOnClickListener {
-            val prompt = etPrompt.text.toString()
+        binding.btnTest.setOnClickListener {
+            val prompt = binding.etPrompt.text.toString()
             if (prompt.isNotEmpty()) {
-                tvOutput.text = ""
+                binding.tvOutput.text = ""
                 generateText(prompt)
+            } else {
+                Toast.makeText(this, "Please enter a prompt", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -124,13 +131,13 @@ class MainActivity : AppCompatActivity() {
         val callback = object : ILLMCallback.Stub() {
             override fun onTokenReceived(token: String) {
                 runOnUiThread {
-                    tvOutput.append(token)
+                    binding.tvOutput.append(token)
                 }
             }
 
             override fun onGenerationComplete(fullText: String) {
                 runOnUiThread {
-                    tvOutput.append("\n\n[Complete]")
+                    binding.tvOutput.append("\n\n[Complete]")
                 }
             }
         }

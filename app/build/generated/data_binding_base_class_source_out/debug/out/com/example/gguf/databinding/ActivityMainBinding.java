@@ -4,38 +4,48 @@ package com.example.gguf.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
 import com.example.gguf.R;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.textfield.TextInputEditText;
 import java.lang.NullPointerException;
 import java.lang.Override;
 import java.lang.String;
 
 public final class ActivityMainBinding implements ViewBinding {
   @NonNull
-  private final LinearLayout rootView;
+  private final CoordinatorLayout rootView;
 
   @NonNull
-  public final Button btnDownload;
+  public final MaterialButton btnDownload;
 
   @NonNull
-  public final Button btnStartService;
+  public final MaterialButton btnSelectFile;
 
   @NonNull
-  public final Button btnTest;
+  public final MaterialButton btnStartService;
 
   @NonNull
-  public final EditText etPrompt;
+  public final MaterialButton btnTest;
 
   @NonNull
-  public final ProgressBar progressBar;
+  public final TextInputEditText etModelUrl;
+
+  @NonNull
+  public final TextInputEditText etPrompt;
+
+  @NonNull
+  public final LinearProgressIndicator progressBar;
+
+  @NonNull
+  public final MaterialToolbar toolbar;
 
   @NonNull
   public final TextView tvOutput;
@@ -43,22 +53,28 @@ public final class ActivityMainBinding implements ViewBinding {
   @NonNull
   public final TextView tvProgress;
 
-  private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull Button btnDownload,
-      @NonNull Button btnStartService, @NonNull Button btnTest, @NonNull EditText etPrompt,
-      @NonNull ProgressBar progressBar, @NonNull TextView tvOutput, @NonNull TextView tvProgress) {
+  private ActivityMainBinding(@NonNull CoordinatorLayout rootView,
+      @NonNull MaterialButton btnDownload, @NonNull MaterialButton btnSelectFile,
+      @NonNull MaterialButton btnStartService, @NonNull MaterialButton btnTest,
+      @NonNull TextInputEditText etModelUrl, @NonNull TextInputEditText etPrompt,
+      @NonNull LinearProgressIndicator progressBar, @NonNull MaterialToolbar toolbar,
+      @NonNull TextView tvOutput, @NonNull TextView tvProgress) {
     this.rootView = rootView;
     this.btnDownload = btnDownload;
+    this.btnSelectFile = btnSelectFile;
     this.btnStartService = btnStartService;
     this.btnTest = btnTest;
+    this.etModelUrl = etModelUrl;
     this.etPrompt = etPrompt;
     this.progressBar = progressBar;
+    this.toolbar = toolbar;
     this.tvOutput = tvOutput;
     this.tvProgress = tvProgress;
   }
 
   @Override
   @NonNull
-  public LinearLayout getRoot() {
+  public CoordinatorLayout getRoot() {
     return rootView;
   }
 
@@ -84,32 +100,50 @@ public final class ActivityMainBinding implements ViewBinding {
     int id;
     missingId: {
       id = R.id.btnDownload;
-      Button btnDownload = ViewBindings.findChildViewById(rootView, id);
+      MaterialButton btnDownload = ViewBindings.findChildViewById(rootView, id);
       if (btnDownload == null) {
         break missingId;
       }
 
+      id = R.id.btnSelectFile;
+      MaterialButton btnSelectFile = ViewBindings.findChildViewById(rootView, id);
+      if (btnSelectFile == null) {
+        break missingId;
+      }
+
       id = R.id.btnStartService;
-      Button btnStartService = ViewBindings.findChildViewById(rootView, id);
+      MaterialButton btnStartService = ViewBindings.findChildViewById(rootView, id);
       if (btnStartService == null) {
         break missingId;
       }
 
       id = R.id.btnTest;
-      Button btnTest = ViewBindings.findChildViewById(rootView, id);
+      MaterialButton btnTest = ViewBindings.findChildViewById(rootView, id);
       if (btnTest == null) {
         break missingId;
       }
 
+      id = R.id.etModelUrl;
+      TextInputEditText etModelUrl = ViewBindings.findChildViewById(rootView, id);
+      if (etModelUrl == null) {
+        break missingId;
+      }
+
       id = R.id.etPrompt;
-      EditText etPrompt = ViewBindings.findChildViewById(rootView, id);
+      TextInputEditText etPrompt = ViewBindings.findChildViewById(rootView, id);
       if (etPrompt == null) {
         break missingId;
       }
 
       id = R.id.progressBar;
-      ProgressBar progressBar = ViewBindings.findChildViewById(rootView, id);
+      LinearProgressIndicator progressBar = ViewBindings.findChildViewById(rootView, id);
       if (progressBar == null) {
+        break missingId;
+      }
+
+      id = R.id.toolbar;
+      MaterialToolbar toolbar = ViewBindings.findChildViewById(rootView, id);
+      if (toolbar == null) {
         break missingId;
       }
 
@@ -125,8 +159,9 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityMainBinding((LinearLayout) rootView, btnDownload, btnStartService, btnTest,
-          etPrompt, progressBar, tvOutput, tvProgress);
+      return new ActivityMainBinding((CoordinatorLayout) rootView, btnDownload, btnSelectFile,
+          btnStartService, btnTest, etModelUrl, etPrompt, progressBar, toolbar, tvOutput,
+          tvProgress);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

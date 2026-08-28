@@ -3173,6 +3173,7 @@ id bounceBoth
 id bounceEnd
 id bounceStart
 id btnDownload
+id btnSelectFile
 id btnStartService
 id btnTest
 id buttonPanel
@@ -3256,6 +3257,7 @@ id end
 id endToStart
 id enterAlways
 id enterAlwaysCollapsed
+id etModelUrl
 id etPrompt
 id exitUntilCollapsed
 id expand_activities_button
@@ -3541,6 +3543,7 @@ id title
 id titleDividerNoCustom
 id title_template
 id toggle
+id toolbar
 id top
 id topPanel
 id touch_outside

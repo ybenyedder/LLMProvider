@@ -1,10 +1,13 @@
 R_DEF: Internal format may change without notice
 local
 id btnDownload
+id btnSelectFile
 id btnStartService
 id btnTest
+id etModelUrl
 id etPrompt
 id progressBar
+id toolbar
 id tvOutput
 id tvProgress
 layout activity_main
