@@ -1,18 +1,33 @@
-# LLM Provider Service
+# LLM Provider (tree4five) 🌲5️⃣
 
-Ceci est l'application Android indépendante qui héberge le modèle GGUF via `llama.cpp` et l'expose aux autres applications via AIDL.
+A modern, on-device Large Language Model (LLM) Inference Service for Android.
 
-## Fonctionnalités
-- Téléchargement du modèle GGUF depuis Hugging Face.
-- Lancement du Service LLM en arrière-plan (Foreground Service).
-- Interface de test pour envoyer un prompt et recevoir le texte en streaming.
+## Features
+- **Local On-Device AI:** Runs GGUF models directly on your Android device using `java-llama.cpp`. No cloud, complete privacy.
+- **AIDL Service Architecture:** Exposes a persistent Foreground Service, allowing any other app on the device to bind to it and generate text seamlessly.
+- **Dynamic Model Loading:** Fetch models directly via URL (HTTP/HTTPS) or load local `.gguf` files using the Android Storage Access Framework.
+- **Material 3 Design:** A beautiful, responsive interface utilizing the custom tree4five color palette.
+- **Android 14 Ready:** Fully compliant with Android 14 Foreground Service (FGS) requirements (`FOREGROUND_SERVICE_SPECIAL_USE`).
 
-## ⚠️ Important : Compilation Native
-Bien que ce projet compile le code Kotlin avec succès en utilisant les classes Java de `de.kherud:llama`, il a besoin de la librairie native (`libjllama.so`) compilée spécifiquement pour Android (architecture ARM) avec le flag Vulkan/CLBlast pour fonctionner **à l'exécution**.
+## How to Use
+1. **Download the App:** Build the project or grab the latest APK.
+2. **Setup a Model:** Launch the app, enter a HuggingFace GGUF URL (e.g., SmolLM) or select a local model file, and tap "Fetch URL" or "Select File".
+3. **Start the Service:** Tap "Start Service" to initialize the inference engine in the background.
+4. **Test Inference:** Enter a prompt in the test box and watch the model stream the response in real-time!
 
-Pour finaliser l'installation de `llama.cpp` :
-1. Téléchargez le code source de `java-llama.cpp` et son sous-module `llama.cpp`.
-2. Créez un dossier `src/main/cpp` et placez-y le code C++.
-3. Dans `app/build.gradle.kts`, décommentez le bloc `externalNativeBuild` et ajoutez les flags CMake :
-   `-DGGML_VULKAN=ON` (pour l'accélération GPU Vulkan).
-4. Synchronisez Gradle pour compiler l'application avec le NDK Android.
+## Build Instructions
+This project uses Gradle. To build the debug APK:
+```bash
+./gradlew assembleDebug
+```
+To run the automated tests:
+```bash
+./gradlew testDebugUnitTest
+./gradlew connectedAndroidTest
+```
+
+## Integrating into your app
+Since this runs as an AIDL service, you can bind to `com.example.gguf.ACTION_LLM_SERVICE` from your own apps and pass the `ILLMCallback` stub to receive token streams asynchronously!
+
+## License
+MIT

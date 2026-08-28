@@ -35,9 +35,6 @@ class LLMInferenceService : Service() {
     override fun onCreate() {
         super.onCreate()
         
-        // Essential for java-llama.cpp to extract its native libraries on Android
-        System.setProperty("de.kherud.llama.tmpdir", applicationContext.cacheDir.absolutePath)
-        
         startForegroundService()
         initializeModel()
     }

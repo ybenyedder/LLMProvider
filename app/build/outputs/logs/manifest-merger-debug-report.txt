@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-39:12
-INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-39:12
-INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-39:12
-INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-39:12
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-40:12
+INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:2:1-40:12
 MERGED from [androidx.databinding:viewbinding:8.4.0] /home/pc/.gradle/caches/transforms-4/c255372c5a44c1ebb2bd13a4d67b403e/transformed/viewbinding-8.4.0/AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.11.0] /home/pc/.gradle/caches/transforms-4/a0ee75a775366593c93be839c0fc3219/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/pc/.gradle/caches/transforms-4/4ed8d2241cdf9f1a235d76c993761117/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
@@ -76,8 +76,8 @@ ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:9:5-77
 	android:name
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:9:22-74
 application
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:11:5-37:19
-INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:11:5-37:19
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:11:5-38:19
+INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:11:5-38:19
 MERGED from [com.google.android.material:material:1.11.0] /home/pc/.gradle/caches/transforms-4/a0ee75a775366593c93be839c0fc3219/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /home/pc/.gradle/caches/transforms-4/a0ee75a775366593c93be839c0fc3219/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/pc/.gradle/caches/transforms-4/4ed8d2241cdf9f1a235d76c993761117/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -99,53 +99,55 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/pc/.gradle/caches/tra
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:16:9-35
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:17:9-35
 	android:label
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:14:9-37
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-37
 	android:roundIcon
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-54
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:16:9-54
 	android:icon
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:13:9-43
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:14:9-43
 	android:allowBackup
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:12:9-35
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:13:9-35
 	android:theme
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:17:9-47
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:18:9-47
+	android:name
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:12:9-28
 activity#com.example.gguf.MainActivity
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:19:9-26:20
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:20:9-27:20
 	android:exported
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:21:13-36
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:22:13-36
 	android:name
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:20:13-41
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:21:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:22:13-25:29
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:23:13-26:29
 action#android.intent.action.MAIN
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:23:17-69
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:24:17-69
 	android:name
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:23:25-66
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:24:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:24:17-77
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:25:17-77
 	android:name
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:24:27-74
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:25:27-74
 service#com.example.gguf.LLMInferenceService
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:28:9-36:19
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:29:9-37:19
 	android:exported
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:30:13-36
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:31:13-36
 	android:foregroundServiceType
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:31:13-55
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:32:13-55
 	android:name
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:29:13-48
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:30:13-48
 property#android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:32:13-115
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:33:13-115
 	android:value
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:32:83-112
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:33:83-112
 	android:name
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:32:23-82
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:33:23-82
 intent-filter#action:name:com.example.gguf.ACTION_LLM_SERVICE
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:33:13-35:29
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:34:13-36:29
 action#com.example.gguf.ACTION_LLM_SERVICE
-ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:34:17-78
+ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:17-78
 	android:name
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:34:25-75
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:35:25-75
 uses-sdk
 INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml
