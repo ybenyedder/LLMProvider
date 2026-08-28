@@ -49,15 +49,15 @@ class LLMInferenceService : Service() {
                 "LLM Inference Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Maintient le modèle LLM actif en arrière-plan pour les requêtes inter-applications."
+                description = "Keeps the LLM model active in the background for cross-app requests."
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }
 
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Service d'Inférence LLM")
-            .setContentText("Chargement du modèle GGUF...")
+            .setContentTitle("LLM Inference Service")
+            .setContentText("Loading GGUF model...")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setOngoing(true)
             .build()
@@ -71,7 +71,7 @@ class LLMInferenceService : Service() {
 
     private fun updateNotification(text: String) {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Service d'Inférence LLM")
+            .setContentTitle("LLM Inference Service")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setOngoing(true)
@@ -85,8 +85,8 @@ class LLMInferenceService : Service() {
             try {
                 val modelFile = File(applicationContext.filesDir, "model.gguf")
                 if (!modelFile.exists()) {
-                    Log.e(TAG, "Le fichier modèle est introuvable au chemin : ${modelFile.absolutePath}")
-                    updateNotification("Erreur: Modèle introuvable. Veuillez le télécharger.")
+                    Log.e(TAG, "Model file not found at path : ${modelFile.absolutePath}")
+                    updateNotification("Error: Model not found. Please download it.")
                     return@launch
                 }
 
@@ -94,13 +94,13 @@ class LLMInferenceService : Service() {
                     .setModelFilePath(modelFile.absolutePath)
                     .setNGpuLayers(-1)
                 
-                Log.d(TAG, "Initialisation du modèle avec accélération matérielle...")
+                Log.d(TAG, "Initializing model with hardware acceleration...")
                 llamaModel = LlamaModel(params)
-                Log.d(TAG, "Modèle chargé avec succès.")
-                updateNotification("Le modèle GGUF est chargé et prêt.")
+                Log.d(TAG, "Model loaded successfully.")
+                updateNotification("GGUF model is loaded and ready.")
             } catch (e: Exception) {
-                Log.e(TAG, "Erreur lors de l'initialisation du modèle GGUF", e)
-                updateNotification("Erreur lors de l'initialisation du modèle.")
+                Log.e(TAG, "Error during GGUF model initialization", e)
+                updateNotification("Error during model initialization.")
             }
         }
     }
@@ -110,7 +110,7 @@ class LLMInferenceService : Service() {
             serviceScope.launch {
                 val model = llamaModel
                 if (model == null) {
-                    callback.onGenerationComplete("Erreur: Modèle non chargé ou en cours de chargement. Veuillez patienter.")
+                    callback.onGenerationComplete("Error: Model not loaded or currently loading. Please wait.")
                     return@launch
                 }
 
@@ -128,8 +128,8 @@ class LLMInferenceService : Service() {
                     
                     callback.onGenerationComplete(fullTextBuilder.toString())
                 } catch (e: Exception) {
-                    Log.e(TAG, "Erreur pendant la génération", e)
-                    callback.onGenerationComplete("Erreur pendant la génération : ${e.message}")
+                    Log.e(TAG, "Error during generation", e)
+                    callback.onGenerationComplete("Error during generation : ${e.message}")
                 }
             }
         }
@@ -144,6 +144,6 @@ class LLMInferenceService : Service() {
         serviceScope.cancel()
         llamaModel?.close()
         llamaModel = null
-        Log.d(TAG, "Service détruit, modèle libéré.")
+        Log.d(TAG, "Service destroyed, model released.")
     }
 }

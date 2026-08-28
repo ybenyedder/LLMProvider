@@ -13,7 +13,7 @@ object ModelDownloader {
     private const val TAG = "ModelDownloader"
 
     /**
-     * Télécharge un modèle GGUF depuis HuggingFace (ou autre URL) vers le stockage local.
+     * Downloads a GGUF model from HuggingFace (or other URL) to local storage.
      */
     suspend fun downloadModel(
         url: String, 
@@ -37,7 +37,7 @@ object ModelDownloader {
             }
 
             if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-                Log.e(TAG, "Erreur serveur HTTP ${connection.responseCode}")
+                Log.e(TAG, "HTTP Server Error ${connection.responseCode}")
                 return@withContext false
             }
 
@@ -70,11 +70,11 @@ object ModelDownloader {
             output.close()
             input.close()
             
-            Log.d(TAG, "Téléchargement terminé : ${destinationFile.absolutePath}")
+            Log.d(TAG, "Download complete : ${destinationFile.absolutePath}")
             return@withContext true
             
         } catch (e: Exception) {
-            Log.e(TAG, "Erreur de téléchargement", e)
+            Log.e(TAG, "Download error", e)
             if (destinationFile.exists()) {
                 destinationFile.delete()
             }

@@ -4,7 +4,7 @@
             "outputFile": "com.example.gguf.app-mergeDebugResources-29:/values-kk/values-kk.xml",
             "map": [
                 {
-                    "source": "/home/cvsbd/.gradle/caches/transforms-4/a0ee75a775366593c93be839c0fc3219/transformed/material-1.11.0/res/values-kk/values-kk.xml",
+                    "source": "/home/pc/.gradle/caches/transforms-4/a0ee75a775366593c93be839c0fc3219/transformed/material-1.11.0/res/values-kk/values-kk.xml",
                     "from": {
                         "startLines": "2,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -23,7 +23,7 @@
                     }
                 },
                 {
-                    "source": "/home/cvsbd/.gradle/caches/transforms-4/1c03fc8045c7f6397147510cb5b656cc/transformed/appcompat-1.6.1/res/values-kk/values-kk.xml",
+                    "source": "/home/pc/.gradle/caches/transforms-4/1c03fc8045c7f6397147510cb5b656cc/transformed/appcompat-1.6.1/res/values-kk/values-kk.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -40,7 +40,7 @@
                     }
                 },
                 {
-                    "source": "/home/cvsbd/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/res/values-kk/values-kk.xml",
+                    "source": "/home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/res/values-kk/values-kk.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             llmService = ILLMService.Stub.asInterface(service)
             isBound = true
-            Toast.makeText(this@MainActivity, "Connecté au service LLM AIDL", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@MainActivity, "Connected to LLM AIDL service", Toast.LENGTH_SHORT).show()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -67,8 +67,7 @@ class MainActivity : AppCompatActivity() {
         val modelFile = File(filesDir, "model.gguf")
 
         btnDownload.setOnClickListener {
-            // Using SmolLM 135M Instruct GGUF as requested
-            val url = "https://huggingface.co/HuggingFaceTB/SmolLM-135M-Instruct-GGUF/resolve/main/smollm-135m-instruct-q4_k_m.gguf"
+            val url = "https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
             progressBar.visibility = View.VISIBLE
             tvProgress.visibility = View.VISIBLE
             btnDownload.isEnabled = false
@@ -79,9 +78,9 @@ class MainActivity : AppCompatActivity() {
                     tvProgress.text = "${progress}%"
                 }
                 if (success) {
-                    Toast.makeText(this@MainActivity, "Téléchargement terminé", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Download complete", Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(this@MainActivity, "Échec du téléchargement", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "Download failed", Toast.LENGTH_SHORT).show()
                 }
                 btnDownload.isEnabled = true
                 progressBar.visibility = View.GONE
@@ -118,7 +117,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun generateText(prompt: String) {
         if (!isBound || llmService == null) {
-            Toast.makeText(this, "Service non lié !", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Service not bound!", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -131,7 +130,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onGenerationComplete(fullText: String) {
                 runOnUiThread {
-                    tvOutput.append("\n\n[Terminé]")
+                    tvOutput.append("\n\n[Complete]")
                 }
             }
         }
@@ -139,7 +138,7 @@ class MainActivity : AppCompatActivity() {
         try {
             llmService?.generateTextStream(prompt, callback)
         } catch (e: Exception) {
-            Log.e("MainActivity", "Erreur lors de l'appel AIDL", e)
+            Log.e("MainActivity", "Error calling AIDL", e)
         }
     }
 
