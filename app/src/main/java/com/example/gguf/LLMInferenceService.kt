@@ -80,7 +80,16 @@ class LLMInferenceService : Service() {
     private fun initializeModel() {
         serviceScope.launch {
             try {
-                val modelFile = File(applicationContext.filesDir, "model.gguf")
+                val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val modelPath = prefs.getString("active_model", null)
+
+                if (modelPath == null) {
+                    Log.e(TAG, "No model selected.")
+                    updateNotification("Error: No model selected. Please select one in the app.")
+                    return@launch
+                }
+
+                val modelFile = File(modelPath)
                 if (!modelFile.exists()) {
                     Log.e(TAG, "Model file not found at path : ${modelFile.absolutePath}")
                     updateNotification("Error: Model not found. Please download it.")

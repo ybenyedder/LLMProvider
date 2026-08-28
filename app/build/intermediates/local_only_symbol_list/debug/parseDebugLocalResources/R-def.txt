@@ -17,6 +17,7 @@ id btnTest
 id etModelUrl
 id etPrompt
 id progressBar
+id spinnerModels
 id toolbar
 id tvOutput
 id tvProgress

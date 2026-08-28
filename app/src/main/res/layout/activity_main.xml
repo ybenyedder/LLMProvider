@@ -128,10 +128,24 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="2. Start LLM Service"
+                        android:text="2. Select &amp; Start Service"
                         android:textAppearance="?attr/textAppearanceTitleMedium"
                         android:textStyle="bold"
                         android:layout_marginBottom="12dp"/>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:hint="Available Models">
+                        
+                        <AutoCompleteTextView
+                            android:id="@+id/spinnerModels"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"/>
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnStartService"

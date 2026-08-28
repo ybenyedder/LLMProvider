@@ -10,8 +10,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -44,7 +46,6 @@ class MainActivity : AppCompatActivity() {
 
     private val selectFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri?.let {
-            // Use the selected URI (content://) as the source
             binding.etModelUrl.setText(it.toString())
             Toast.makeText(this, "File selected! Tap Fetch to copy it.", Toast.LENGTH_SHORT).show()
         }
@@ -56,13 +57,28 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         checkPermissions()
-
-        val modelFile = File(filesDir, "model.gguf")
+        updateModelList()
 
         binding.btnDownload.setOnClickListener {
             val url = binding.etModelUrl.text.toString().trim()
             if (url.isEmpty()) {
                 Toast.makeText(this, "Please enter a URL or select a file", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            var fileName = url.substringAfterLast("/")
+            if (url.startsWith("content://")) {
+                fileName = getFileNameFromUri(Uri.parse(url)) ?: "model_${System.currentTimeMillis()}.gguf"
+            }
+            if (!fileName.endsWith(".gguf", ignoreCase = true)) {
+                fileName = "model_${System.currentTimeMillis()}.gguf"
+            }
+            val modelFile = File(filesDir, fileName)
+
+            if (modelFile.exists()) {
+                Toast.makeText(this, "Model already exists! Selected it in the list.", Toast.LENGTH_SHORT).show()
+                updateModelList()
+                binding.spinnerModels.setText(fileName, false)
                 return@setOnClickListener
             }
 
@@ -78,6 +94,8 @@ class MainActivity : AppCompatActivity() {
                 }
                 if (success) {
                     Toast.makeText(this@MainActivity, "Model setup complete", Toast.LENGTH_SHORT).show()
+                    updateModelList()
+                    binding.spinnerModels.setText(fileName, false)
                 } else {
                     Toast.makeText(this@MainActivity, "Failed to fetch/copy model", Toast.LENGTH_SHORT).show()
                 }
@@ -89,11 +107,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnSelectFile.setOnClickListener {
-            // Select any file (preferably .gguf, but */* is safer across file managers)
             selectFileLauncher.launch(arrayOf("*/*"))
         }
 
         binding.btnStartService.setOnClickListener {
+            val selectedModel = binding.spinnerModels.text.toString()
+            if (selectedModel.isEmpty()) {
+                Toast.makeText(this, "Please download or select a model first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            
+            val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("active_model", File(filesDir, selectedModel).absolutePath).apply()
+
             val intent = Intent(this, LLMInferenceService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent)
@@ -112,6 +138,41 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Please enter a prompt", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun updateModelList() {
+        val models = filesDir.listFiles { _, name -> name.endsWith(".gguf", ignoreCase = true) }
+            ?.map { it.name } ?: emptyList()
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, models)
+        binding.spinnerModels.setAdapter(adapter)
+        
+        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val activeModelPath = prefs.getString("active_model", null)
+        val activeModelName = activeModelPath?.substringAfterLast("/")
+        
+        if (activeModelName != null && models.contains(activeModelName)) {
+            binding.spinnerModels.setText(activeModelName, false)
+        } else if (models.isNotEmpty()) {
+            binding.spinnerModels.setText(models[0], false)
+        }
+    }
+
+    private fun getFileNameFromUri(uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index != -1) {
+                        result = cursor.getString(index)
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path?.substringAfterLast('/')
+        }
+        return result
     }
 
     private fun checkPermissions() {

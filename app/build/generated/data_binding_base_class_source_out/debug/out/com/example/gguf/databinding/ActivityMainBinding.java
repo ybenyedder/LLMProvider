@@ -4,6 +4,7 @@ package com.example.gguf.databinding;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AutoCompleteTextView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -45,6 +46,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final LinearProgressIndicator progressBar;
 
   @NonNull
+  public final AutoCompleteTextView spinnerModels;
+
+  @NonNull
   public final MaterialToolbar toolbar;
 
   @NonNull
@@ -57,8 +61,8 @@ public final class ActivityMainBinding implements ViewBinding {
       @NonNull MaterialButton btnDownload, @NonNull MaterialButton btnSelectFile,
       @NonNull MaterialButton btnStartService, @NonNull MaterialButton btnTest,
       @NonNull TextInputEditText etModelUrl, @NonNull TextInputEditText etPrompt,
-      @NonNull LinearProgressIndicator progressBar, @NonNull MaterialToolbar toolbar,
-      @NonNull TextView tvOutput, @NonNull TextView tvProgress) {
+      @NonNull LinearProgressIndicator progressBar, @NonNull AutoCompleteTextView spinnerModels,
+      @NonNull MaterialToolbar toolbar, @NonNull TextView tvOutput, @NonNull TextView tvProgress) {
     this.rootView = rootView;
     this.btnDownload = btnDownload;
     this.btnSelectFile = btnSelectFile;
@@ -67,6 +71,7 @@ public final class ActivityMainBinding implements ViewBinding {
     this.etModelUrl = etModelUrl;
     this.etPrompt = etPrompt;
     this.progressBar = progressBar;
+    this.spinnerModels = spinnerModels;
     this.toolbar = toolbar;
     this.tvOutput = tvOutput;
     this.tvProgress = tvProgress;
@@ -141,6 +146,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.spinnerModels;
+      AutoCompleteTextView spinnerModels = ViewBindings.findChildViewById(rootView, id);
+      if (spinnerModels == null) {
+        break missingId;
+      }
+
       id = R.id.toolbar;
       MaterialToolbar toolbar = ViewBindings.findChildViewById(rootView, id);
       if (toolbar == null) {
@@ -160,8 +171,8 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((CoordinatorLayout) rootView, btnDownload, btnSelectFile,
-          btnStartService, btnTest, etModelUrl, etPrompt, progressBar, toolbar, tvOutput,
-          tvProgress);
+          btnStartService, btnTest, etModelUrl, etPrompt, progressBar, spinnerModels, toolbar,
+          tvOutput, tvProgress);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
