@@ -103,13 +103,13 @@ MERGED from [androidx.startup:startup-runtime:1.1.1] /home/pc/.gradle/caches/tra
 	android:label
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:14:9-37
 	android:roundIcon
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-63
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-54
 	android:icon
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:13:9-58
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:13:9-43
 	android:allowBackup
 		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:12:9-35
 	android:theme
-		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:17:9-67
+		ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:17:9-47
 activity#com.example.gguf.MainActivity
 ADDED from /home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:19:9-26:20
 	android:exported

@@ -1,5 +1,15 @@
 R_DEF: Internal format may change without notice
 local
+color colorBackground
+color colorOnBackground
+color colorOnPrimary
+color colorOnSecondary
+color colorOnSurface
+color colorPrimary
+color colorPrimaryVariant
+color colorSecondary
+color colorSecondaryVariant
+color colorSurface
 id btnDownload
 id btnSelectFile
 id btnStartService
@@ -11,3 +21,6 @@ id toolbar
 id tvOutput
 id tvProgress
 layout activity_main
+mipmap ic_launcher
+mipmap ic_launcher_round
+style Theme.Tree4Five

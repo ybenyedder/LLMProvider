@@ -43,16 +43,16 @@
 25-->[androidx.core:core:1.12.0] /home/pc/.gradle/caches/transforms-4/b03b6185ac3230449e54e9ec045e33ec/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
 26        android:debuggable="true"
 27        android:extractNativeLibs="false"
-28        android:icon="@android:drawable/sym_def_app_icon"
-28-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:13:9-58
+28        android:icon="@mipmap/ic_launcher"
+28-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:13:9-43
 29        android:label="LLM Provider"
 29-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:14:9-37
-30        android:roundIcon="@android:drawable/sym_def_app_icon"
-30-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-63
+30        android:roundIcon="@mipmap/ic_launcher_round"
+30-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:15:9-54
 31        android:supportsRtl="true"
 31-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:16:9-35
-32        android:theme="@style/Theme.AppCompat.Light.DarkActionBar" >
-32-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:17:9-67
+32        android:theme="@style/Theme.Tree4Five" >
+32-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:17:9-47
 33        <activity
 33-->/home/pc/sby/LLMProvider/app/src/main/AndroidManifest.xml:19:9-26:20
 34            android:name="com.example.gguf.MainActivity"
