@@ -96,8 +96,10 @@ class LLMInferenceService : Service() {
                     return@launch
                 }
 
+                val optimalThreads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2)
                 val params = ModelParameters()
                     .setModelFilePath(modelFile.absolutePath)
+                    .setNThreads(optimalThreads)
                     .setNGpuLayers(-1)
                 
                 Log.d(TAG, "Initializing model with hardware acceleration...")
@@ -126,6 +128,7 @@ class LLMInferenceService : Service() {
 
                 try {
                     val formattedPrompt = PromptManager.formatPrompt(prompt)
+                    
                     val inferenceParams = InferenceParameters(formattedPrompt)
                         .setNPredict(512)
 
