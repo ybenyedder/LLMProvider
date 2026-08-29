@@ -8,4 +8,9 @@ interface ILLMService {
      */
     oneway void generateTextStream(String prompt, ILLMCallback callback);
     oneway void stopGeneration();
+    
+    /**
+     * Retrieves the current version of the LLM Provider application.
+     */
+    String getVersion();
 }

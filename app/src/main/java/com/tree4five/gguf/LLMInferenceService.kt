@@ -152,6 +152,10 @@ class LLMInferenceService : Service() {
         override fun stopGeneration() {
             isGenerationCancelled = true
         }
+
+        override fun getVersion(): String {
+            return BuildConfig.VERSION_NAME
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder {
