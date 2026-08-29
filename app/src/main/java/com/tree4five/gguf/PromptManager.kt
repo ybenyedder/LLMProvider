@@ -24,8 +24,9 @@ object PromptManager {
                 json.optString("prompt", input)
             }
         } catch (e: JSONException) {
-            // Not a JSON string, return as is
-            input
+            // Not a JSON string, assume it's a raw user prompt and wrap it in a standard ChatML template
+            // This prevents instruct models from returning empty spaces or stopping immediately
+            return "<|im_start|>user\n$input<|im_end|>\n<|im_start|>assistant\n"
         }
     }
 }

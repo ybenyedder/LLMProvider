@@ -128,6 +128,7 @@ class LLMInferenceService : Service() {
 
                 try {
                     val formattedPrompt = PromptManager.formatPrompt(prompt)
+                    Log.d(TAG, "Formatted prompt for inference: $formattedPrompt")
                     
                     val inferenceParams = InferenceParameters(formattedPrompt)
                         .setNPredict(512)
