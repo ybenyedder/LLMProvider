@@ -25,8 +25,8 @@ class CompareInferenceTest {
     @Test
     fun runPromptsAndCompare() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val url = "https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
-        val modelFile = File(context.filesDir, "SmolLM2-135M-Instruct-Q4_K_M.gguf")
+        val url = "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+        val modelFile = File(context.filesDir, "qwen2.5-0.5b-instruct-q4_k_m.gguf")
         
         Log.i("CompareTest", "Downloading model... This may take a while.")
         runBlocking {

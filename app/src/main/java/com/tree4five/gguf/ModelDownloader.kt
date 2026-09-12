@@ -102,7 +102,8 @@ object ModelDownloader {
             return@withContext true
             
         } catch (e: Exception) {
-            Log.e(TAG, "Transfer error", e)
+            Log.e(TAG, "Transfer error: ${e.message}", e)
+            e.printStackTrace()
             if (destinationFile.exists()) {
                 destinationFile.delete()
             }

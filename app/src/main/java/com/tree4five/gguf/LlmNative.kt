@@ -59,7 +59,11 @@ object LlmNative {
 
     external fun tokenToPiece(handle: Long, token: Int): String
 
-    /** Mean of the token-embedding rows for the given token ids. */
+    /**
+     * Input-embedding lookup: flat array of tokens.size * [dim] floats holding
+     * the dequantized token_embd row of each id. Feeding these rows to
+     * [generateFromEmbeddings] reproduces the text generation path exactly.
+     */
     external fun embedTokenRows(handle: Long, tokens: IntArray): FloatArray
 
     /** mode 0 = mean of token rows, mode 1 = mean of hidden states (pooling MEAN). */

@@ -40,6 +40,24 @@ class LLMInferenceService : Service() {
     @Volatile
     private var embeddingDim: Int = -1
 
+    /** One reserved embedding input (soft prompt); vectors are float32. */
+    private class EmbdSlot(val count: Int, val dim: Int) {
+        val vectors = FloatArray(count * dim)
+    }
+
+    // LRU of reserved embedding slots; access order guarded by this lock.
+    private val embdSlots = object : LinkedHashMap<Int, EmbdSlot>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, EmbdSlot>?): Boolean =
+            size > MAX_EMBD_SLOTS
+    }
+    private var nextEmbdSlotId = 1
+
+    private fun reserveEmbdSlotLocked(count: Int, dim: Int): Int {
+        val id = nextEmbdSlotId++
+        embdSlots[id] = EmbdSlot(count, dim)
+        return id
+    }
+
     companion object {
         private const val TAG = "LLMInferenceService"
         private const val NOTIFICATION_ID = 1
@@ -48,6 +66,12 @@ class LLMInferenceService : Service() {
         /** Context window; 2048 keeps the KV cache near 25 MB on Qwen2.5-0.5B (F7). */
         private const val N_CTX = 2048
         private const val N_PREDICT = 512
+
+        /** Maximum reserved embedding slots (LRU-evicted). */
+        private const val MAX_EMBD_SLOTS = 8
+
+        /** Binder transfer ceiling per setEmbeddingChunk call, in vectors. */
+        private const val MAX_CHUNK_VECTORS = 32
 
         /** Greedy by default: deterministic, best-behaved on small models. */
         private const val TEMPERATURE = 0.0f

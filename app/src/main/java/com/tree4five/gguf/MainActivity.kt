@@ -59,6 +59,10 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
         updateModelList()
 
+        val protocols = listOf("Ollama", "OpenAI", "ChatML", "Raw")
+        val protocolAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, protocols)
+        binding.spinnerProtocol.setAdapter(protocolAdapter)
+
         binding.btnDownload.setOnClickListener {
             val url = binding.etModelUrl.text.toString().trim()
             if (url.isEmpty()) {
@@ -118,7 +122,10 @@ class MainActivity : AppCompatActivity() {
             }
             
             val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            prefs.edit().putString("active_model", File(filesDir, selectedModel).absolutePath).apply()
+            prefs.edit()
+                .putString("active_model", File(filesDir, selectedModel).absolutePath)
+                .putString("api_protocol", binding.spinnerProtocol.text.toString())
+                .apply()
 
             val intent = Intent(this, LLMInferenceService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

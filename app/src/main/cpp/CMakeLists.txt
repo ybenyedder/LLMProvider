@@ -31,7 +31,7 @@ add_subdirectory(llama.cpp)
 
 add_library(ggufllm SHARED gguf_llm_jni.cpp)
 
-target_link_libraries(ggufllm PRIVATE llama common)
+target_link_libraries(ggufllm PRIVATE llama common log)
 
 # --exclude-libs,ALL: do not re-export the static llama/ggml symbols from our .so
 # (avoids clashing with any other libllama an app process might load).

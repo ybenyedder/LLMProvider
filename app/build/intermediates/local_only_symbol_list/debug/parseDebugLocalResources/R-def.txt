@@ -19,6 +19,7 @@ id etModelUrl
 id etPrompt
 id progressBar
 id spinnerModels
+id spinnerProtocol
 id toolbar
 id tvOutput
 id tvProgress

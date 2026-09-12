@@ -49,7 +49,7 @@ class LLMInferenceServiceTest {
         service.generateTextStream("Test prompt", callback)
 
         // Wait for generation to complete (or fail gracefully if model is missing)
-        latch.await(5, TimeUnit.SECONDS)
+        latch.await(60, TimeUnit.SECONDS)
         
         // Assertions
         assertNotNull(completeText)

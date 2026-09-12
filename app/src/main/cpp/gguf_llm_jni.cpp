@@ -15,8 +15,8 @@
 //   - A llama_batch must be either token-only or embd-only; the latent prefix
 //     and the text follow-up are therefore two llama_decode calls with
 //     continuous positions.
-//   - llama_batch_init leaves pos/n_seq_id/seq_id/logits UNINITIALIZED: every
-//     field must be written before decode.
+//   - llama_batch_init leaves n_tokens, pos/n_seq_id/seq_id/logits
+//     UNINITIALIZED (zeroed): every field must be written before decode.
 //   - Sampling is the legacy API (llama_sample_temp/top_k/top_p/token[_greedy]).
 //
 // JNI pitfalls handled here:
@@ -35,6 +35,11 @@
 
 #include "llama.h"
 #include "ggml.h"
+
+#include <android/log.h>
+
+#define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, "ggufllm", __VA_ARGS__)
+#define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, "ggufllm", __VA_ARGS__)
 
 namespace {
 
@@ -167,8 +172,16 @@ struct CallbackRef {
 // ---------------------------------------------------------------- sampling
 
 // Reads the logits of the last output position and samples one token.
+// llama.cpp throws C++ exceptions on invalid access; none may cross the JNI
+// boundary (std::terminate), so every risky read is guarded here.
 llama_token sample_next(llama_context * ctx, float temperature, int top_k, float top_p) {
-    const float * logits = llama_get_logits_ith(ctx, -1);
+    const float * logits = nullptr;
+    try {
+        logits = llama_get_logits_ith(ctx, -1);
+    } catch (const std::exception & ex) {
+        fprintf(stderr, "ggufllm: sample_next failed: %s\n", ex.what());
+        return llama_token_eos(llama_get_model(ctx));
+    }
     if (logits == nullptr) { return llama_token_eos(llama_get_model(ctx)); }
     const int n_vocab = llama_n_vocab(llama_get_model(ctx));
 
@@ -219,6 +232,20 @@ int tokenize_to(LlmEngine * e, const std::string & s, std::vector<llama_token> &
 
 // --------------------------------------------------------------- generation
 
+// llama_decode throws C++ exceptions on invalid input (e.g. batch overflows
+// n_ctx); none may cross the JNI boundary.
+int safe_decode(llama_context * ctx, llama_batch & batch) {
+    try {
+        return llama_decode(ctx, batch);
+    } catch (const std::exception & ex) {
+        ALOGE("llama_decode failed: %s", ex.what());
+        return -1;
+    } catch (...) {
+        ALOGE("llama_decode failed: unknown error");
+        return -1;
+    }
+}
+
 // Append piece(tok) to out; returns false when tok is EOS.
 bool append_piece(LlmEngine * e, llama_token tok, std::string & out) {
     if (tok == llama_token_eos(e->model)) { return false; }
@@ -241,6 +268,9 @@ int run_sampling(LlmEngine * e, llama_context * ctx, JNIEnv * env, jobject callb
     int produced = 0;
     while (produced < n_predict && !e->stop.load()) {
         const llama_token tok = sample_next(ctx, temperature, top_k, top_p);
+        if (produced == 0) {
+            ALOGI("sampling: first token=%d (eos=%d)", tok, llama_token_eos(e->model));
+        }
         std::string piece;
         if (!append_piece(e, tok, piece)) { break; }              // EOS
         if (!piece.empty() && has_cb) {
@@ -248,7 +278,7 @@ int run_sampling(LlmEngine * e, llama_context * ctx, JNIEnv * env, jobject callb
             if (cb.broken) { break; }
         }
         llama_batch batch = llama_batch_get_one(const_cast<llama_token *>(&tok), 1, pos, 0);
-        if (llama_decode(ctx, batch) != 0) { break; }
+        if (safe_decode(ctx, batch) != 0) { break; }
         ++pos;
         ++produced;
     }
@@ -381,8 +411,10 @@ Java_com_tree4five_gguf_LlmNative_tokenToPiece(JNIEnv * env, jobject /*thiz*/, j
     return env->NewStringUTF(std::string(piece.data(), static_cast<size_t>(n)).c_str());
 }
 
-// Mean of the token-embedding rows for `tokens` (input-embedding lookup path,
-// and the parity-test counterpart of a tokenized prompt).
+// Input-embedding lookup: returns a flat array of len(tokens) * n_embd floats
+// holding the dequantized token_embd row of every id (row t at [t*n_embd,
+// (t+1)*n_embd)). This is exactly what a token-input llama_decode gathers, so
+// feeding these rows to generateFromEmbeddings reproduces the text path.
 JNIEXPORT jfloatArray JNICALL
 Java_com_tree4five_gguf_LlmNative_embedTokenRows(JNIEnv * env, jobject /*thiz*/, jlong handle,
                                                  jintArray tokens) {
@@ -397,24 +429,19 @@ Java_com_tree4five_gguf_LlmNative_embedTokenRows(JNIEnv * env, jobject /*thiz*/,
     std::vector<jint> ids(static_cast<size_t>(n));
     env->GetIntArrayRegion(tokens, 0, n, ids.data());
 
+    jfloatArray out = env->NewFloatArray(n * e->n_embd);
+    if (out == nullptr) { return nullptr; }
     std::vector<float> row(static_cast<size_t>(e->n_embd));
-    std::vector<double> acc(static_cast<size_t>(e->n_embd), 0.0);
     for (jsize t = 0; t < n; ++t) {
         const jint id = ids[static_cast<size_t>(t)];
         if (id < 0 || id >= e->n_vocab) { continue; }
         if (!dequant_row(e, id, row.data())) {
+            env->DeleteLocalRef(out);
             throw_java(env, "java/lang/IllegalStateException", "unsupported token_embd type");
             return nullptr;
         }
-        for (int d = 0; d < e->n_embd; ++d) { acc[static_cast<size_t>(d)] += row[static_cast<size_t>(d)]; }
+        env->SetFloatArrayRegion(out, static_cast<jsize>(t) * e->n_embd, e->n_embd, row.data());
     }
-    std::vector<float> mean(static_cast<size_t>(e->n_embd));
-    for (int d = 0; d < e->n_embd; ++d) {
-        mean[static_cast<size_t>(d)] = static_cast<float>(acc[static_cast<size_t>(d)] / n);
-    }
-    jfloatArray out = env->NewFloatArray(e->n_embd);
-    if (out == nullptr) { return nullptr; }
-    env->SetFloatArrayRegion(out, 0, e->n_embd, mean.data());
     return out;
 }
 
@@ -449,11 +476,16 @@ Java_com_tree4five_gguf_LlmNative_embedText(JNIEnv * env, jobject /*thiz*/, jlon
             }
         }
         llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int>(tokens.size()), 0, 0);
-        if (llama_decode(e->ctx_embd, batch) != 0) {
+        if (safe_decode(e->ctx_embd, batch) != 0) {
             throw_java(env, "java/lang/IllegalStateException", "embedding decode failed");
             return nullptr;
         }
-        const float * embd = llama_get_embeddings(e->ctx_embd);
+        // With pooling MEAN the pooled vector lives in embd_seq, not in the
+        // per-token embedding buffer.
+        const float * embd = llama_get_embeddings_seq(e->ctx_embd, 0);
+        if (embd == nullptr) {
+            embd = llama_get_embeddings(e->ctx_embd);
+        }
         if (embd == nullptr) {
             throw_java(env, "java/lang/IllegalStateException", "no embeddings returned");
             return nullptr;
@@ -515,7 +547,7 @@ Java_com_tree4five_gguf_LlmNative_generate(JNIEnv * env, jobject /*thiz*/, jlong
     while (pos < static_cast<int>(tokens.size())) {
         const int chunk = std::min(kMaxBatch, static_cast<int>(tokens.size()) - pos);
         llama_batch batch = llama_batch_get_one(tokens.data() + pos, chunk, pos, 0);
-        if (llama_decode(ctx, batch) != 0) { return -1; }
+        if (safe_decode(ctx, batch) != 0) { return -1; }
         pos += chunk;
     }
     // logits==nullptr meant "last position only", so -1 indexes that output.
@@ -551,12 +583,19 @@ Java_com_tree4five_gguf_LlmNative_generateFromEmbeddings(JNIEnv * env, jobject /
     llama_kv_cache_clear(ctx);
     e->stop.store(false);
 
+    const std::string followup = to_std_string(env, followup_prompt);
+    ALOGI("generateFromEmbeddings: count=%d n_embd=%d followup_chars=%zu", count, e->n_embd, followup.size());
+
     // 1) Prefill the latent prefix in chunks (batches must be embd-only; the
-    //    text follow-up is a second decode with continuous positions).
+    //    text follow-up is a second decode with continuous positions). With no
+    //    follow-up, the last prefix token must produce the sampling logits.
+    const bool followup_empty = followup.empty();
     int pos = 0;
     while (pos < count) {
         const int chunk = std::min(kMaxBatch, count - pos);
+        const bool is_last_chunk = (pos + chunk >= count);
         llama_batch batch = llama_batch_init(chunk, e->n_embd, 1);
+        batch.n_tokens = chunk;  // llama_batch_init leaves this at 0!
         for (int i = 0; i < chunk; ++i) {
             const size_t src = static_cast<size_t>(pos + i) * e->n_embd;
             float * dst = batch.embd + static_cast<size_t>(i) * e->n_embd;
@@ -564,17 +603,17 @@ Java_com_tree4five_gguf_LlmNative_generateFromEmbeddings(JNIEnv * env, jobject /
             batch.pos[i] = pos + i;
             batch.n_seq_id[i] = 1;
             batch.seq_id[i][0] = 0;
-            batch.logits[i] = 0;  // last-position logits come from the follow-up decode
+            batch.logits[i] = (followup_empty && is_last_chunk && i == chunk - 1) ? 1 : 0;
         }
-        const int rc = llama_decode(ctx, batch);
+        const int rc = safe_decode(ctx, batch);
         llama_batch_free(batch);
-        if (rc != 0) { return -1; }
+        if (rc != 0) { ALOGE("latent prefill decode failed at pos=%d rc=%d", pos, rc); return -1; }
         pos += chunk;
     }
+    ALOGI("latent prefill done: pos=%d followup_empty=%d", pos, followup_empty ? 1 : 0);
 
     // 2) Optional text follow-up.
-    const std::string followup = to_std_string(env, followup_prompt);
-    if (!followup.empty()) {
+    if (!followup_empty) {
         std::vector<llama_token> tokens;
         if (tokenize_to(e, followup, tokens, /*add_special=*/true) > 0) {
             if (static_cast<int>(tokens.size()) > e->n_ctx - pos - 4) {
@@ -584,7 +623,7 @@ Java_com_tree4five_gguf_LlmNative_generateFromEmbeddings(JNIEnv * env, jobject /
             while (p2 < static_cast<int>(tokens.size())) {
                 const int chunk = std::min(kMaxBatch, static_cast<int>(tokens.size()) - p2);
                 llama_batch batch = llama_batch_get_one(tokens.data() + p2, chunk, pos, 0);
-                if (llama_decode(ctx, batch) != 0) { return -1; }
+                if (safe_decode(ctx, batch) != 0) { return -1; }
                 pos += chunk;
                 p2 += chunk;
             }

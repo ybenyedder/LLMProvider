@@ -60,7 +60,7 @@
                             android:id="@+id/etModelUrl"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf"
+                            android:text="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
                             android:inputType="textUri"/>
                     </com.google.android.material.textfield.TextInputLayout>
 
@@ -144,6 +144,21 @@
                             android:id="@+id/spinnerModels"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:inputType="none"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:hint="API Protocol">
+                        
+                        <AutoCompleteTextView
+                            android:id="@+id/spinnerProtocol"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Ollama"
                             android:inputType="none"/>
                     </com.google.android.material.textfield.TextInputLayout>
 

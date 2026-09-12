@@ -11,7 +11,7 @@ LLM Provider is a powerful, on-device AI inference engine that brings the power 
 
 **Key Features:**
 * **100% Offline AI:** Chat and generate text without an internet connection.
-* **GGUF Support:** Compatible with popular quantized Llama models (SmolLM, Llama-3, etc.).
+* **GGUF Support:** Compatible with popular quantized Llama models (Qwen, Llama-3, etc.).
 * **Universal AIDL Service:** Other apps on your device can connect to the LLM Provider to add AI capabilities seamlessly.
 * **Custom Models:** Download models directly from HuggingFace URLs or import your own local `.gguf` files.
 * **Material Design:** A beautiful, intuitive, and modern interface.
