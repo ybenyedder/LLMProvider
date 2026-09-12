@@ -9,7 +9,10 @@ class PromptManagerTest {
     fun testPlainStringPrompt() {
         val input = "Hello world"
         val output = PromptManager.formatPrompt(input)
-        assertEquals("Hello world", output)
+        // A raw (non-JSON) prompt is wrapped into the ChatML user turn so
+        // instruct models do not answer with empty text.
+        val expected = "<|im_start|>user\nHello world<|im_end|>\n<|im_start|>assistant\n"
+        assertEquals(expected, output)
     }
 
     @Test

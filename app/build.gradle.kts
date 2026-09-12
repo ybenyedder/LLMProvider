@@ -5,23 +5,28 @@ plugins {
 
 android {
     namespace = "com.tree4five.gguf"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.tree4five.gguf"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.3"
+        targetSdk = 36
+        versionCode = 8
+        versionName = "1.0.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        
-        // We configure CMake here if we want to build llama.cpp natively
-        /* externalNativeBuild {
+
+        ndk {
+            // The native bridge is built only for arm64: the target device
+            // (SM-P610) is arm64-v8a and each extra ABI doubles the .so size.
+            abiFilters += "arm64-v8a"
+        }
+
+        externalNativeBuild {
             cmake {
-                cppFlags += "-std=c++11"
+                cppFlags += "-std=c++17"
             }
-        } */
+        }
     }
 
     signingConfigs {
@@ -61,12 +66,12 @@ android {
         unitTests.isReturnDefaultValues = true
     }
 
-    /* externalNativeBuild {
+    externalNativeBuild {
         cmake {
             path("src/main/cpp/CMakeLists.txt")
             version = "3.22.1"
         }
-    } */
+    }
 }
 
 dependencies {
@@ -76,9 +81,11 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     
-    // Ajout de la dépendance Java pour llama.cpp
-    implementation("de.kherud:llama:3.3.0") // Note: The native .so will be needed at runtime
-    
+    // llama.cpp is now built from source in src/main/cpp (libggufllm.so) and
+    // accessed through our own JNI bridge (LlmNative). The de.kherud:llama
+    // binding was removed: it shipped a second libllama that must never be
+    // loaded in the same process as ours.
+
     testImplementation("org.json:json:20230227")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

@@ -1,26 +1,16 @@
 package com.tree4five.gguf
 
 import android.app.Application
+import android.util.Log
 
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Must be set BEFORE any class from java-llama.cpp is loaded
-        System.setProperty("de.kherud.llama.tmpdir", cacheDir.absolutePath)
-        System.setProperty("java.io.tmpdir", cacheDir.absolutePath)
-        
-        // Android natively installs .so files from jniLibs, so we load them manually here
-        // to bypass the broken java-llama.cpp classpath resource extractor.
-        try {
-            System.loadLibrary("c++_shared")
-            System.loadLibrary("omp")
-            System.loadLibrary("ggml")
-            System.loadLibrary("llama")
-            System.loadLibrary("jllama")
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } catch (e: Error) {
-            e.printStackTrace()
+        // llama.cpp is built from source into libggufllm.so (app/src/main/cpp);
+        // preload it once here so service startup fails fast with a clear log
+        // if the native library is missing.
+        if (!LlmNative.ensureLoaded()) {
+            Log.e("App", "libggufllm.so could not be loaded")
         }
     }
 }

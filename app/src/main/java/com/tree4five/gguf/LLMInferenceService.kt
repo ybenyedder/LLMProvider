@@ -11,30 +11,53 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import de.kherud.llama.LlamaModel
-import de.kherud.llama.ModelParameters
-import de.kherud.llama.InferenceParameters
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * Foreground service binding harnessDroid to llama.cpp through [LlmNative].
+ *
+ * llama_context is not thread-safe: every generation runs on a
+ * limitedParallelism(1) dispatcher AND under a Mutex, so requests queue
+ * instead of corrupting the shared context (F10).
+ */
 class LLMInferenceService : Service() {
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private var llamaModel: LlamaModel? = null
+    private val serviceScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
+    private val requestMutex = kotlinx.coroutines.sync.Mutex()
+    private val generationCancelled = AtomicBoolean(false)
+
+    @Volatile
+    private var modelHandle: Long = 0L
+
+    @Volatile
+    private var embeddingDim: Int = -1
 
     companion object {
         private const val TAG = "LLMInferenceService"
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID = "LLM_SERVICE_CHANNEL"
+
+        /** Context window; 2048 keeps the KV cache near 25 MB on Qwen2.5-0.5B (F7). */
+        private const val N_CTX = 2048
+        private const val N_PREDICT = 512
+
+        /** Greedy by default: deterministic, best-behaved on small models. */
+        private const val TEMPERATURE = 0.0f
+        private const val TOP_K = 40
+        private const val TOP_P = 0.95f
     }
 
     override fun onCreate() {
         super.onCreate()
-        
+
         startForegroundService()
         initializeModel()
     }
@@ -96,15 +119,25 @@ class LLMInferenceService : Service() {
                     return@launch
                 }
 
-                val optimalThreads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2)
-                val params = ModelParameters()
-                    .setModelFilePath(modelFile.absolutePath)
-                    .setNThreads(optimalThreads)
-                    .setNGpuLayers(-1)
-                
-                Log.d(TAG, "Initializing model with hardware acceleration...")
-                llamaModel = LlamaModel(params)
-                Log.d(TAG, "Model loaded successfully.")
+                if (!LlmNative.ensureLoaded()) {
+                    updateNotification("Error: native library missing on this device.")
+                    return@launch
+                }
+
+                // CPU-only inference; half the cores for responsiveness (4G/4C SoC).
+                val threads = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
+                val handle = LlmNative.loadModel(modelFile.absolutePath, N_CTX, threads)
+                if (handle == 0L) {
+                    updateNotification("Error during model initialization.")
+                    return@launch
+                }
+                modelHandle = handle
+                embeddingDim = try {
+                    LlmNative.getEmbeddingDim(handle)
+                } catch (_: Throwable) {
+                    -1
+                }
+                Log.d(TAG, "Model loaded (handle=$handle, embeddingDim=$embeddingDim).")
                 updateNotification("GGUF model is loaded and ready.")
             } catch (e: Exception) {
                 Log.e(TAG, "Error during GGUF model initialization", e)
@@ -113,15 +146,12 @@ class LLMInferenceService : Service() {
         }
     }
 
-    @Volatile
-    private var isGenerationCancelled = false
-
     private val binder = object : ILLMService.Stub() {
+
         override fun generateTextStream(prompt: String, callback: ILLMCallback) {
             serviceScope.launch {
-                isGenerationCancelled = false
-                val model = llamaModel
-                if (model == null) {
+                val handle = modelHandle
+                if (handle == 0L) {
                     callback.onGenerationComplete("Error: Model not loaded or currently loading. Please wait.")
                     return@launch
                 }
@@ -129,23 +159,35 @@ class LLMInferenceService : Service() {
                 try {
                     val formattedPrompt = PromptManager.formatPrompt(prompt)
                     Log.d(TAG, "Formatted prompt for inference: $formattedPrompt")
-                    
-                    val inferenceParams = InferenceParameters(formattedPrompt)
-                        .setNPredict(512)
 
-                    val fullTextBuilder = java.lang.StringBuilder()
-                    
-                    for (output in model.generate(inferenceParams)) {
-                        if (isGenerationCancelled) {
-                            fullTextBuilder.append("\n[Generation Stopped]")
-                            break
-                        }
-                        val token = output.text
-                        fullTextBuilder.append(token)
-                        callback.onTokenReceived(token)
+                    val fullText = StringBuilder()
+                    requestMutex.withLock {
+                        generationCancelled.set(false)
+                        LlmNative.generate(
+                            handle = handle,
+                            prompt = formattedPrompt,
+                            nPredict = N_PREDICT,
+                            temperature = TEMPERATURE,
+                            topK = TOP_K,
+                            topP = TOP_P,
+                            callback = object : LlmNative.LlmCallback {
+                                override fun onToken(token: String) {
+                                    fullText.append(token)
+                                    callback.onTokenReceived(token)
+                                }
+
+                                override fun onError(message: String) {
+                                    Log.e(TAG, "Generation error: $message")
+                                }
+                            }
+                        )
                     }
-                    
-                    callback.onGenerationComplete(fullTextBuilder.toString())
+                    val result = if (generationCancelled.get()) {
+                        fullText.toString() + "\n[Generation Stopped]"
+                    } else {
+                        fullText.toString()
+                    }
+                    callback.onGenerationComplete(result)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error during generation", e)
                     callback.onGenerationComplete("Error during generation : ${e.message}")
@@ -154,7 +196,15 @@ class LLMInferenceService : Service() {
         }
 
         override fun stopGeneration() {
-            isGenerationCancelled = true
+            generationCancelled.set(true)
+            val handle = modelHandle
+            if (handle != 0L) {
+                try {
+                    LlmNative.stop(handle)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error stopping generation", e)
+                }
+            }
         }
 
         override fun getVersion(): String {
@@ -169,8 +219,12 @@ class LLMInferenceService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        llamaModel?.close()
-        llamaModel = null
+        val handle = modelHandle
+        if (handle != 0L) {
+            // Scope already cancelled: free the engine synchronously.
+            runBlocking { requestMutex.withLock { LlmNative.freeModel(handle) } }
+            modelHandle = 0L
+        }
         Log.d(TAG, "Service destroyed, model released.")
     }
 }
