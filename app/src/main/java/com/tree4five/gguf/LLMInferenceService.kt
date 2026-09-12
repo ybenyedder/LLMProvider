@@ -240,10 +240,13 @@ class LLMInferenceService : Service() {
 
         // ---- Embeddings pipeline (v1.1.0). ----
 
-        override fun getEmbeddingDim(): Int = embeddingDim
+        // Qualify field reads: bare `embeddingDim` resolves to the JavaBean
+        // synthetic property of ILLMService (getEmbeddingDim) inside this
+        // object, which recurses into itself.
+        override fun getEmbeddingDim(): Int = this@LLMInferenceService.embeddingDim
 
         override fun beginEmbeddingInput(count: Int, dim: Int): Int {
-            val modelDim = embeddingDim
+            val modelDim = this@LLMInferenceService.embeddingDim
             if (modelHandle == 0L || modelDim <= 0) return -1
             if (dim != modelDim) return -1
             // Keep room for the text followup inside the context window.
@@ -345,7 +348,7 @@ class LLMInferenceService : Service() {
                 }
                 try {
                     val vector = LlmNative.embedText(nativeHandle, text, 0)
-                    callback.onEmbedding(EmbeddingCodec.encodeOne(vector), embeddingDim)
+                    callback.onEmbedding(EmbeddingCodec.encodeOne(vector), this@LLMInferenceService.embeddingDim)
                 } catch (e: Exception) {
                     Log.e(TAG, "embedText failed", e)
                     callback.onError("embedText failed: ${e.message}")
