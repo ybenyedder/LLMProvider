@@ -20,6 +20,9 @@ LLM Provider is a powerful, on-device AI inference engine that brings the power 
 
 Take control of your AI today!
 
+## What's New (1.1.1)
+* Maintenance release: dependency and build updates. Pairs with Harness Droid 1.2.1.
+
 ## What's New (1.1.0)
 * New embeddings pipeline exposed over AIDL: embeddingDim, embedText, and generate-from-embeddings (int8-packed vector upload, chunked transfers).
 * One-tap model presets including a dedicated embedding model (nomic-embed-text-v1.5).
