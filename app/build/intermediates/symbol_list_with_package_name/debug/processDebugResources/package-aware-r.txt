@@ -3202,6 +3202,9 @@ id chain2
 id chains
 id checkbox
 id checked
+id chipPreset05b
+id chipPreset15b
+id chipPresetNomic
 id chronometer
 id circle_center
 id clear_text

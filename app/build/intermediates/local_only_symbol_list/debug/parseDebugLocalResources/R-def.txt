@@ -15,6 +15,9 @@ id btnSelectFile
 id btnStartService
 id btnStop
 id btnTest
+id chipPreset05b
+id chipPreset15b
+id chipPresetNomic
 id etModelUrl
 id etPrompt
 id progressBar

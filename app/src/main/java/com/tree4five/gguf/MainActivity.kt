@@ -63,6 +63,22 @@ class MainActivity : AppCompatActivity() {
         val protocolAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, protocols)
         binding.spinnerProtocol.setAdapter(protocolAdapter)
 
+        // Download presets: no model is forced; the 0.5B stays the default
+        // suggestion (smallest with a usable embedding space).
+        val presets = mapOf(
+            binding.chipPreset05b.id to
+                "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+            binding.chipPreset15b.id to
+                "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+            binding.chipPresetNomic.id to
+                "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf"
+        )
+        presets.forEach { (chipId, url) ->
+            findViewById<com.google.android.material.chip.Chip>(chipId).setOnClickListener {
+                binding.etModelUrl.setText(url)
+            }
+        }
+
         binding.btnDownload.setOnClickListener {
             val url = binding.etModelUrl.text.toString().trim()
             if (url.isEmpty()) {

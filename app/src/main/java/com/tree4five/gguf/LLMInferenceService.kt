@@ -31,6 +31,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 class LLMInferenceService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
+
+    /** embedText (mode 0) never touches a llama_context; kept off the gen queue. */
+    private val embedScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val requestMutex = kotlinx.coroutines.sync.Mutex()
     private val generationCancelled = AtomicBoolean(false)
 
@@ -234,6 +237,121 @@ class LLMInferenceService : Service() {
         override fun getVersion(): String {
             return BuildConfig.VERSION_NAME
         }
+
+        // ---- Embeddings pipeline (v1.1.0). ----
+
+        override fun getEmbeddingDim(): Int = embeddingDim
+
+        override fun beginEmbeddingInput(count: Int, dim: Int): Int {
+            val modelDim = embeddingDim
+            if (modelHandle == 0L || modelDim <= 0) return -1
+            if (dim != modelDim) return -1
+            // Keep room for the text followup inside the context window.
+            if (count <= 0 || count > N_CTX - 4) return -1
+            synchronized(embdSlots) { return reserveEmbdSlotLocked(count, dim) }
+        }
+
+        override fun setEmbeddingChunk(handle: Int, startToken: Int, q8: ByteArray?) {
+            val bytes = q8
+            if (bytes == null || bytes.isEmpty()) return
+            synchronized(embdSlots) {
+                val slot = embdSlots[handle] ?: return
+                val perVector = EmbeddingCodec.bytesPerVector(slot.dim)
+                val chunkVectors = bytes.size / perVector
+                if (chunkVectors == 0) return
+                if (startToken < 0 || startToken + chunkVectors > slot.count) {
+                    Log.e(TAG, "setEmbeddingChunk out of range: start=$startToken chunk=$chunkVectors slot=${slot.count}")
+                    return
+                }
+                val decoded = EmbeddingCodec.decodeFlat(bytes, slot.dim)
+                System.arraycopy(decoded, 0, slot.vectors, startToken * slot.dim, decoded.size)
+            }
+        }
+
+        override fun generateFromEmbeddings(
+            handle: Int,
+            count: Int,
+            followupPrompt: String?,
+            nPredict: Int,
+            temperature: Float,
+            callback: ILLMCallback?
+        ) {
+            if (callback == null) return
+            serviceScope.launch {
+                val nativeHandle = modelHandle
+                if (nativeHandle == 0L) {
+                    callback.onGenerationComplete("Error: Model not loaded or currently loading. Please wait.")
+                    return@launch
+                }
+                val slot = synchronized(embdSlots) { embdSlots[handle] }
+                if (slot == null) {
+                    callback.onGenerationComplete("Error: unknown embedding input (handle=$handle).")
+                    return@launch
+                }
+                // Snapshot: a concurrent releaseEmbeddings must not tear the arrays.
+                val vectors = synchronized(embdSlots) { slot.vectors.copyOf() }
+                try {
+                    val fullText = StringBuilder()
+                    requestMutex.withLock {
+                        generationCancelled.set(false)
+                        LlmNative.generateFromEmbeddings(
+                            handle = nativeHandle,
+                            vectors = vectors,
+                            count = count.coerceIn(1, slot.count),
+                            followupPrompt = followupPrompt ?: "",
+                            nPredict = nPredict.coerceAtMost(N_PREDICT),
+                            temperature = temperature,
+                            topK = TOP_K,
+                            topP = TOP_P,
+                            callback = object : LlmNative.LlmCallback {
+                                override fun onToken(token: String) {
+                                    fullText.append(token)
+                                    callback.onTokenReceived(token)
+                                }
+
+                                override fun onError(message: String) {
+                                    Log.e(TAG, "Generation error: $message")
+                                }
+                            }
+                        )
+                    }
+                    val result = if (generationCancelled.get()) {
+                        fullText.toString() + "\n[Generation Stopped]"
+                    } else {
+                        fullText.toString()
+                    }
+                    callback.onGenerationComplete(result)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error during embedding generation", e)
+                    callback.onGenerationComplete("Error during generation : ${e.message}")
+                }
+            }
+        }
+
+        override fun releaseEmbeddings(handle: Int) {
+            synchronized(embdSlots) { embdSlots.remove(handle) }
+        }
+
+        override fun embedText(text: String?, callback: IEmbedCallback?) {
+            if (callback == null) return
+            // Mode 0 never touches a llama_context, so it may run off the
+            // single-threaded generation dispatcher (the native engine mutex
+            // still serializes it against a running generation).
+            embedScope.launch {
+                val nativeHandle = modelHandle
+                if (nativeHandle == 0L || text.isNullOrEmpty()) {
+                    callback.onError("Model not loaded or empty text.")
+                    return@launch
+                }
+                try {
+                    val vector = LlmNative.embedText(nativeHandle, text, 0)
+                    callback.onEmbedding(EmbeddingCodec.encodeOne(vector), embeddingDim)
+                } catch (e: Exception) {
+                    Log.e(TAG, "embedText failed", e)
+                    callback.onError("embedText failed: ${e.message}")
+                }
+            }
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -243,6 +361,7 @@ class LLMInferenceService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+        embedScope.cancel()
         val handle = modelHandle
         if (handle != 0L) {
             // Scope already cancelled: free the engine synchronously.

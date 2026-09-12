@@ -55,7 +55,7 @@
                         android:layout_height="wrap_content"
                         android:hint="GGUF URL (http/https) or file URI"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-                        
+
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etModelUrl"
                             android:layout_width="match_parent"
@@ -63,6 +63,45 @@
                             android:text="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
                             android:inputType="textUri"/>
                     </com.google.android.material.textfield.TextInputLayout>
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPreset05b"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0.5B · 470 MB · embeddings ✓"
+                                android:checkable="false"/>
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPreset15b"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:text="1.5B · 1.0 GB · embeddings ✓"
+                                android:checkable="false"/>
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPresetNomic"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:text="nomic-embed · 140 MB · embedder add-on"
+                                android:checkable="false"/>
+                        </LinearLayout>
+                    </HorizontalScrollView>
 
                     <LinearLayout
                         android:layout_width="match_parent"

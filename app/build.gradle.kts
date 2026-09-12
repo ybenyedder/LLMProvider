@@ -11,14 +11,16 @@ android {
         applicationId = "com.tree4five.gguf"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.0.7"
+        versionCode = 9
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             // The native bridge is built only for arm64: the target device
             // (SM-P610) is arm64-v8a and each extra ABI doubles the .so size.
+            // x86_64 is added to debug builds only so the emulator can run
+            // the instrumentation suite.
             abiFilters += "arm64-v8a"
         }
 
@@ -39,6 +41,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            ndk {
+                abiFilters += "x86_64"
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
