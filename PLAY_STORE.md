@@ -20,6 +20,9 @@ LLM Provider is a powerful, on-device AI inference engine that brings the power 
 
 Take control of your AI today!
 
+## What's New (1.1.3)
+* Companion release for Harness Droid 1.2.3. Maintenance build, no functional changes.
+
 ## What's New (1.1.2)
 * Companion release for Harness Droid 1.2.2. Maintenance build, no functional changes.
 
