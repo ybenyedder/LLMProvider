@@ -238,6 +238,16 @@ class LLMInferenceService : Service() {
             return BuildConfig.VERSION_NAME
         }
 
+        override fun getContextLength(): Int {
+            val handle = modelHandle
+            if (handle == 0L) return -1
+            return try {
+                LlmNative.getContextLength(handle)
+            } catch (_: Exception) {
+                -1
+            }
+        }
+
         // ---- Embeddings pipeline (v1.1.0). ----
 
         // Qualify field reads: bare `embeddingDim` resolves to the JavaBean

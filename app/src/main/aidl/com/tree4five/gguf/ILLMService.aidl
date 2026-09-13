@@ -54,4 +54,14 @@ interface ILLMService {
      * returns one packed vector [float32 scale][int8 x dim] via `callback`.
      */
     oneway void embedText(String text, IEmbedCallback callback);
+
+    // ---- Context reporting (v1.1.4). Appended at the END of the interface
+    // so callers compiled against earlier versions keep working unchanged. ----
+
+    /**
+     * Returns the context window (in tokens) the engine runs the loaded model
+     * with: the value read from the GGUF metadata (train context) capped by
+     * the runtime window this engine allocates, or -1 when no model is loaded.
+     */
+    int getContextLength();
 }

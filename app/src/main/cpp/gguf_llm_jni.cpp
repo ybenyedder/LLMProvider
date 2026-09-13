@@ -372,6 +372,16 @@ Java_com_tree4five_gguf_LlmNative_getEmbeddingDim(JNIEnv * env, jobject /*thiz*/
     return e->tok_embd_data != nullptr ? e->n_embd : -1;
 }
 
+JNIEXPORT jint JNICALL
+Java_com_tree4five_gguf_LlmNative_getContextLength(JNIEnv * env, jobject /*thiz*/, jlong handle) {
+    auto * e = engine_of(env, handle);
+    if (e == nullptr || e->model == nullptr) { return -1; }
+    // Value straight from the GGUF metadata (train context window), capped by
+    // the runtime window this engine actually allocates.
+    int train = static_cast<int>(llama_n_ctx_train(e->model));
+    return train > 0 ? std::min(train, e->n_ctx) : e->n_ctx;
+}
+
 JNIEXPORT jintArray JNICALL
 Java_com_tree4five_gguf_LlmNative_tokenize(JNIEnv * env, jobject /*thiz*/, jlong handle,
                                            jstring text, jboolean add_special, jboolean parse_special) {

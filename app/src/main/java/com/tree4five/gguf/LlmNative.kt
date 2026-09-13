@@ -55,6 +55,10 @@ object LlmNative {
     /** Dimension of the token-embedding table, or -1 if unavailable. */
     external fun getEmbeddingDim(handle: Long): Int
 
+    /** Context window in tokens: the GGUF train context capped by the runtime
+     *  window this engine allocates, or -1 when no model is loaded. */
+    external fun getContextLength(handle: Long): Int
+
     external fun tokenize(handle: Long, text: String, addSpecial: Boolean, parseSpecial: Boolean): IntArray
 
     external fun tokenToPiece(handle: Long, token: Int): String
