@@ -3,11 +3,13 @@
 - **Version**: v0.5.0 (upstream tag, commit `7fe450e19305b828c199d602c23a8337aaa1f03b`,
   ggml 0.25.1). Previous vendored version was b3621 (2024-07).
 - **Source**: https://github.com/ggml-org/llama.cpp (shallow clone, files copied).
-- **Why the bump**: the b3621 aarch64 compute path (ggml-aarch64 repack + NEON
-  gemv/gemm kernels) produced garbage logits on Cortex-A73 (SM-P610, Exynos 9611)
-  from the very first sampled token (512× `!`) while the x86_64 build of the SAME
-  model file generated fine. v0.5.0's ggml-cpu has years of arm64 kernel fixes and
-  runtime CPU-feature dispatch (getauxval) instead of compile-time guesses.
+- **Why the bump**: 14 months of upstream fixes (arm64 kernel work, CPU-feature
+  dispatch via getauxval, API cleanups). The tablet garbage-output episode that
+  triggered it (512× `!` on the SM-P610 while x86_64 was fine) turned out to be a
+  **corrupted model copy in the app's filesDir** (same size, different bytes —
+  caught by the FNV-1a hash logged at load), NOT the old kernels; the b3621 build
+  generated correctly on the tablet once fed the intact file. The bump stays:
+  it is the current upstream and both devices validate on it.
 
 ## Pruned (not vendored, nothing references them with our options)
 
