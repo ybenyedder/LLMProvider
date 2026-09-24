@@ -14,12 +14,16 @@ set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(BUILD_SHARED_LIBS OFF)
 
-# llama.cpp: core library only (examples/tests are not even vendored, but keep
-# the options OFF so the root CMakeLists never references those subdirectories).
+# llama.cpp: core library only (examples/tests/tools are not even vendored,
+# but keep the options OFF so the root CMakeLists never references those
+# subdirectories). LLAMA_CURL was removed upstream (deprecated no-op).
+set(LLAMA_BUILD_COMMON OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_APP OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
-set(LLAMA_CURL OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_MTMD OFF CACHE BOOL "" FORCE)
 
 # ggml: Android/NDK friendly settings.
 set(GGML_OPENMP OFF CACHE BOOL "" FORCE)    # no OpenMP runtime in the NDK; pthread pool
@@ -31,7 +35,7 @@ add_subdirectory(llama.cpp)
 
 add_library(ggufllm SHARED gguf_llm_jni.cpp)
 
-target_link_libraries(ggufllm PRIVATE llama common log)
+target_link_libraries(ggufllm PRIVATE llama log)
 
 # --exclude-libs,ALL: do not re-export the static llama/ggml symbols from our .so
 # (avoids clashing with any other libllama an app process might load).

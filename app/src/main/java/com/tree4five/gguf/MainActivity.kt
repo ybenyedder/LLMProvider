@@ -96,10 +96,21 @@ class MainActivity : AppCompatActivity() {
             val modelFile = File(filesDir, fileName)
 
             if (modelFile.exists()) {
-                Toast.makeText(this, "Model already exists! Selected it in the list.", Toast.LENGTH_SHORT).show()
-                updateModelList()
-                binding.spinnerModels.setText(fileName, false)
-                return@setOnClickListener
+                if (url.startsWith("content://")) {
+                    // A locally selected file is an explicit "use THIS content"
+                    // intent: re-copy over whatever is installed. A stale copy
+                    // with the right name but corrupt bytes once cost days of
+                    // debugging (GGUF carries no content checksum — the load
+                    // only fails later, with NaN logits and a degenerate
+                    // output token).
+                    modelFile.delete()
+                    Toast.makeText(this, "Re-copying selected file over existing model...", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Model already exists! Selected it in the list.", Toast.LENGTH_SHORT).show()
+                    updateModelList()
+                    binding.spinnerModels.setText(fileName, false)
+                    return@setOnClickListener
+                }
             }
 
             binding.progressBar.visibility = View.VISIBLE

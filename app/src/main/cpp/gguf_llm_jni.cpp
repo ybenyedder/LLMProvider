@@ -1,27 +1,37 @@
-// JNI bridge: vendored llama.cpp (b3621) <-> com.tree4five.gguf.LlmNative.
+// JNI bridge: vendored llama.cpp (v0.5.0) <-> com.tree4five.gguf.LlmNative.
 //
 // One LlmEngine per loaded model file. Each engine owns:
 //   - ctx_gen : pooling NONE, used for text generation (tokens in) and for
 //               generation from injected embeddings (soft prompt).
 //   - ctx_embd: pooling MEAN, created on demand (embedText mode 1 only).
-// token_embd.weight is read directly from the mmap'd model buffer (CPU
-// backend) and dequantized row by row, so input-embedding lookup and
-// mean-of-rows embedText (mode 0) never need a forward pass.
+// token_embd.weight is read directly from a private mmap of the model file
+// (located through the GGUF metadata, no_alloc) and dequantized row by row,
+// so input-embedding lookup and mean-of-rows embedText (mode 0) never need a
+// forward pass. v0.5.0 removed llama_get_model_tensor, and reading the file
+// bytes is the right replacement anyway: they hold the un-repacked layout the
+// dequantizer expects, while the CPU backend may repack its own copies.
 //
-// b3621 API notes baked into this code:
-//   - llama_batch_get_one(tokens, n, pos_0, seq_id) leaves logits == nullptr,
-//     which decode() treats as "output last position only"; the matching
-//     logits are then llama_get_logits_ith(ctx, -1).
+// v0.5.0 API notes baked into this code:
+//   - The legacy sampler API (llama_sample_temp/top_k/top_p/token[_greedy]) is
+//     gone: sampling is hand-rolled (damp_repeats + greedy argmax, or
+//     top-k/top-p/temperature softmax).
+//   - llama_batch_get_one lost its pos_0 argument and auto-tracks positions;
+//     we do not rely on that — make_token_batch builds batches with explicit
+//     positions and "logits on last position only".
 //   - A llama_batch must be either token-only or embd-only; the latent prefix
 //     and the text follow-up are therefore two llama_decode calls with
 //     continuous positions.
 //   - llama_batch_init leaves n_tokens, pos/n_seq_id/seq_id/logits
 //     UNINITIALIZED (zeroed): every field must be written before decode.
-//   - Sampling is the legacy API (llama_sample_temp/top_k/top_p/token[_greedy])
-//     with a hand-rolled repetition penalty on top: greedy decoding (the
-//     service constant temperature) cannot escape a repetition loop once a
-//     token starts feeding back on itself — qwen2.5-0.5b q4 on arm64 emitted
-//     512× '!' while the x86_64 build escaped by luckier numerics.
+//   - llama_kv_cache_clear is now llama_memory_clear(llama_get_memory(ctx)).
+//   - Vocabulary calls take a llama_vocab (llama_model_get_vocab), and the
+//     non-deprecated accessors are llama_vocab_eos / llama_vocab_n_tokens /
+//     llama_model_n_embd / llama_model_n_ctx_train.
+//   - Repetition damping is still hand-rolled: greedy decoding (the service
+//     constant temperature) cannot escape a repetition loop once a token
+//     starts feeding back on itself — qwen2.5-0.5b q4 on arm64 emitted 512×
+//     '!' while the x86_64 build escaped by luckier numerics (fixed for real
+//     by bumping the vendored llama.cpp, see llama.cpp/VENDORED.md).
 //
 // JNI pitfalls handled here:
 //   - JavaVM cached in JNI_OnLoad; GetEnv + attach for foreign native threads.
@@ -32,14 +42,23 @@
 #include <jni.h>
 #include <algorithm>
 #include <atomic>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <mutex>
+#include <random>
 #include <set>
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "llama.h"
 #include "ggml.h"
+#include "gguf.h"
 
 #include <android/log.h>
 
@@ -52,6 +71,7 @@ constexpr int kMaxBatch = 512;
 
 struct LlmEngine {
     llama_model * model = nullptr;
+    const llama_vocab * vocab = nullptr;
     llama_context * ctx_gen = nullptr;
     llama_context * ctx_embd = nullptr;   // on demand, pooling MEAN
 
@@ -60,7 +80,10 @@ struct LlmEngine {
     int n_ctx = 0;
 
     // token_embd.weight, kept as raw (possibly quantized) rows for cheap
-    // per-row dequantization without copying the whole table.
+    // per-row dequantization without copying the whole table. Backed by a
+    // private mmap of the model file (unmap in freeModel/destructor).
+    void * tok_embd_map = nullptr;
+    size_t tok_embd_map_size = 0;
     const void * tok_embd_data = nullptr;
     enum ggml_type tok_embd_type = GGML_TYPE_F32;
     size_t tok_embd_row_bytes = 0;
@@ -72,7 +95,8 @@ struct LlmEngine {
     ~LlmEngine() {
         if (ctx_embd) { llama_free(ctx_embd); }
         if (ctx_gen) { llama_free(ctx_gen); }
-        if (model) { llama_free_model(model); }
+        if (model) { llama_model_free(model); }
+        if (tok_embd_map) { munmap(tok_embd_map, tok_embd_map_size); }
     }
 };
 
@@ -179,9 +203,9 @@ struct CallbackRef {
 // Reads the logits of the last output position and samples one token.
 // llama.cpp throws C++ exceptions on invalid access; none may cross the JNI
 // boundary (std::terminate), so every risky read is guarded here.
-// Repetition damping (this llama.cpp dropped the legacy
-// llama_sample_repetition_penalty): a token seen in the recent window gets
-// its logit pushed down, so greedy decoding can no longer lock into a loop.
+// Repetition damping (the legacy llama_sample_repetition_penalty is gone): a
+// token seen in the recent window gets its logit pushed down, so decoding can
+// no longer lock into a loop.
 static constexpr float kRepeatPenalty = 1.10f;   // 1.0 = disabled
 static constexpr int kPenaltyLastN = 64;
 
@@ -197,44 +221,127 @@ static void damp_repeats(float * logits, const int n_vocab,
     }
 }
 
-llama_token sample_next(llama_context * ctx, float temperature, int top_k, float top_p,
-                        const std::vector<llama_token> & recent) {
+llama_token sample_next(LlmEngine * e, llama_context * ctx, float temperature, int top_k,
+                        float top_p, const std::vector<llama_token> & recent) {
     float * logits = nullptr;
     try {
         logits = llama_get_logits_ith(ctx, -1);
     } catch (const std::exception & ex) {
         fprintf(stderr, "ggufllm: sample_next failed: %s\n", ex.what());
-        return llama_token_eos(llama_get_model(ctx));
+        return llama_vocab_eos(e->vocab);
     }
-    if (logits == nullptr) { return llama_token_eos(llama_get_model(ctx)); }
-    const int n_vocab = llama_n_vocab(llama_get_model(ctx));
+    if (logits == nullptr) { return llama_vocab_eos(e->vocab); }
+    const int n_vocab = e->n_vocab;
     damp_repeats(logits, n_vocab, recent);
 
-    std::vector<llama_token_data> candidates;
-    candidates.reserve(static_cast<size_t>(n_vocab));
-    for (int i = 0; i < n_vocab; ++i) {
-        candidates.emplace_back(llama_token_data{i, logits[i], 0.0f});
-    }
-    llama_token_data_array arr{candidates.data(), candidates.size(), false};
-
     if (temperature <= 0.0f) {
-        return llama_sample_token_greedy(ctx, &arr);
+        // Greedy: first index holding the strictly highest logit (ties keep
+        // the lowest id, like the old llama_sample_token_greedy).
+        int best = 0;
+        for (int i = 1; i < n_vocab; ++i) {
+            if (logits[i] > logits[best]) { best = i; }
+        }
+        return best;
     }
-    if (top_k > 0) { llama_sample_top_k(ctx, &arr, top_k, 1); }
-    if (top_p < 1.0f) { llama_sample_top_p(ctx, &arr, top_p, 1); }
-    llama_sample_temp(ctx, &arr, temperature);
-    return llama_sample_token(ctx, &arr);
+
+    // Candidate indices, sorted by descending logit.
+    std::vector<int> idx(static_cast<size_t>(n_vocab));
+    for (int i = 0; i < n_vocab; ++i) { idx[static_cast<size_t>(i)] = i; }
+    std::sort(idx.begin(), idx.end(),
+              [&](int a, int b) { return logits[a] > logits[b]; });
+    if (top_k > 0 && top_k < n_vocab) { idx.resize(static_cast<size_t>(top_k)); }
+
+    if (top_p < 1.0f && !idx.empty()) {
+        // Nucleus: smallest prefix of the sorted list whose softmax mass
+        // reaches top_p. Softmax with the max subtracted for stability.
+        const float top_logit = logits[idx[0]];
+        std::vector<float> p(idx.size());
+        float total = 0.0f;
+        for (size_t i = 0; i < idx.size(); ++i) {
+            p[i] = std::exp(logits[idx[i]] - top_logit);
+            total += p[i];
+        }
+        float cum = 0.0f;
+        size_t cut = idx.size();
+        for (size_t i = 0; i < idx.size(); ++i) {
+            cum += p[i] / total;
+            if (cum >= top_p) { cut = i + 1; break; }
+        }
+        idx.resize(cut);
+    }
+    if (idx.empty()) { return llama_vocab_eos(e->vocab); }
+
+    // Softmax over the survivors at the given temperature, then one draw.
+    const float top_logit = logits[idx[0]];
+    std::vector<double> p(idx.size());
+    double total = 0.0;
+    for (size_t i = 0; i < idx.size(); ++i) {
+        p[i] = std::exp(static_cast<double>(logits[idx[i]] - top_logit) / temperature);
+        total += p[i];
+    }
+    if (!(total > 0.0)) { return idx[0]; }
+    static thread_local std::mt19937 rng{std::random_device{}()};
+    std::uniform_real_distribution<double> uni(0.0, total);
+    const double r = uni(rng);
+    double cum = 0.0;
+    for (size_t i = 0; i < idx.size(); ++i) {
+        cum += p[i];
+        if (r < cum) { return idx[i]; }
+    }
+    return idx.back();
+}
+
+// ---------------------------------------------------------------- batching
+
+// One batch with explicit positions and "logits on last position only" (what
+// the old llama_batch_get_one(tokens, n, pos_0, seq_id) with logits==nullptr
+// meant). The v0.5.0 helper lost pos_0 and auto-tracks positions; the
+// latent-prefix path needs explicit control, so batches are built here.
+llama_batch make_token_batch(const llama_token * tokens, int n, int pos_0) {
+    llama_batch batch = llama_batch_init(n, 0, 1);
+    batch.n_tokens = n;  // llama_batch_init leaves this at 0!
+    for (int i = 0; i < n; ++i) {
+        batch.token[i] = tokens[i];
+        batch.pos[i] = pos_0 + i;
+        batch.n_seq_id[i] = 1;
+        batch.seq_id[i][0] = 0;
+        batch.logits[i] = (i == n - 1) ? 1 : 0;
+    }
+    return batch;
 }
 
 // ---------------------------------------------------------------- embedding
 
 // Dequantize row `index` of token_embd into out (n_embd floats).
 bool dequant_row(LlmEngine * e, int index, float * out) {
-    const ggml_type_traits_t t = ggml_internal_get_type_traits(e->tok_embd_type);
-    if (t.to_float == nullptr) { return false; }
+    const ggml_type_traits * t = ggml_get_type_traits(e->tok_embd_type);
+    if (t == nullptr || t->to_float == nullptr) { return false; }
     const uint8_t * row = static_cast<const uint8_t *>(e->tok_embd_data) +
                           static_cast<size_t>(index) * e->tok_embd_row_bytes;
-    t.to_float(row, out, e->n_embd);
+    t->to_float(row, out, e->n_embd);
+    return true;
+}
+
+// Map the raw token_embd rows from the model file. `offset` is the absolute
+// file offset of the tensor data (data section offset + tensor offset from
+// the GGUF metadata); rows are then row_bytes apart from that pointer.
+bool map_tok_embd(LlmEngine * e, const std::string & file, size_t offset) {
+    const int fd = open(file.c_str(), O_RDONLY);
+    if (fd < 0) { return false; }
+    struct stat st {};
+    if (fstat(fd, &st) != 0 || st.st_size <= 0) { close(fd); return false; }
+    // mmap only accepts page-aligned file offsets: map from the enclosing page.
+    const size_t page = static_cast<size_t>(sysconf(_SC_PAGESIZE));
+    const size_t map_off = offset & ~(page - 1);
+    const size_t rel = offset - map_off;
+    const size_t len = static_cast<size_t>(st.st_size) - map_off;
+    void * p = mmap(nullptr, len, PROT_READ, MAP_PRIVATE, fd,
+                    static_cast<off_t>(map_off));
+    close(fd);
+    if (p == MAP_FAILED) { return false; }
+    e->tok_embd_map = p;
+    e->tok_embd_map_size = len;
+    e->tok_embd_data = static_cast<const uint8_t *>(p) + rel;
     return true;
 }
 
@@ -243,12 +350,12 @@ bool dequant_row(LlmEngine * e, int index, float * out) {
 // Tokenize into tokens; returns the number written, 0 on empty, -1 on failure.
 int tokenize_to(LlmEngine * e, const std::string & s, std::vector<llama_token> & tokens,
                 bool add_special) {
-    int n = llama_tokenize(e->model, s.data(), static_cast<int>(s.size()), nullptr, 0,
+    int n = llama_tokenize(e->vocab, s.data(), static_cast<int>(s.size()), nullptr, 0,
                            add_special, true);
     if (n < 0) { n = -n; }
     if (n <= 0) { return 0; }
     tokens.resize(static_cast<size_t>(n));
-    const int written = llama_tokenize(e->model, s.data(), static_cast<int>(s.size()),
+    const int written = llama_tokenize(e->vocab, s.data(), static_cast<int>(s.size()),
                                        tokens.data(), n, add_special, true);
     if (written <= 0) { return -1; }
     tokens.resize(static_cast<size_t>(written));
@@ -273,12 +380,12 @@ int safe_decode(llama_context * ctx, llama_batch & batch) {
 
 // Append piece(tok) to out; returns false when tok is EOS.
 bool append_piece(LlmEngine * e, llama_token tok, std::string & out) {
-    if (tok == llama_token_eos(e->model)) { return false; }
+    if (tok == llama_vocab_eos(e->vocab)) { return false; }
     std::vector<char> piece(256);
-    int n = llama_token_to_piece(e->model, tok, piece.data(), static_cast<int>(piece.size()), 0, true);
+    int n = llama_token_to_piece(e->vocab, tok, piece.data(), static_cast<int>(piece.size()), 0, true);
     if (n < 0) {
         piece.resize(static_cast<size_t>(-n));
-        n = llama_token_to_piece(e->model, tok, piece.data(), static_cast<int>(piece.size()), 0, true);
+        n = llama_token_to_piece(e->vocab, tok, piece.data(), static_cast<int>(piece.size()), 0, true);
     }
     if (n > 0) { out.append(piece.data(), static_cast<size_t>(n)); }
     return true;
@@ -296,9 +403,9 @@ int run_sampling(LlmEngine * e, llama_context * ctx, JNIEnv * env, jobject callb
     std::vector<llama_token> recent(prompt);
     int produced = 0;
     while (produced < n_predict && !e->stop.load()) {
-        const llama_token tok = sample_next(ctx, temperature, top_k, top_p, recent);
+        const llama_token tok = sample_next(e, ctx, temperature, top_k, top_p, recent);
         if (produced == 0) {
-            ALOGI("sampling: first token=%d (eos=%d)", tok, llama_token_eos(e->model));
+            ALOGI("sampling: first token=%d (eos=%d)", tok, llama_vocab_eos(e->vocab));
         }
         std::string piece;
         if (!append_piece(e, tok, piece)) { break; }              // EOS
@@ -306,8 +413,10 @@ int run_sampling(LlmEngine * e, llama_context * ctx, JNIEnv * env, jobject callb
             cb.token(piece);
             if (cb.broken) { break; }
         }
-        llama_batch batch = llama_batch_get_one(const_cast<llama_token *>(&tok), 1, pos, 0);
-        if (safe_decode(ctx, batch) != 0) { break; }
+        llama_batch batch = make_token_batch(&tok, 1, pos);
+        const int rc = safe_decode(ctx, batch);
+        llama_batch_free(batch);
+        if (rc != 0) { break; }
         recent.push_back(tok);
         if (recent.size() > 4096) { recent.erase(recent.begin(), recent.begin() + 2048); }
         ++pos;
@@ -325,7 +434,7 @@ bool build_ctx_gen(LlmEngine * e, int n_ctx, int n_threads) {
     cp.n_threads_batch = n_threads;
     cp.pooling_type = LLAMA_POOLING_TYPE_NONE;
     cp.embeddings = false;
-    e->ctx_gen = llama_new_context_with_model(e->model, cp);
+    e->ctx_gen = llama_init_from_model(e->model, cp);
     return e->ctx_gen != nullptr;
 }
 
@@ -353,29 +462,72 @@ Java_com_tree4five_gguf_LlmNative_loadModel(JNIEnv * env, jobject /*thiz*/,
         throw_java(env, "java/lang/OutOfMemoryError", "cannot allocate engine");
         return 0;
     }
+    // Hash the file we are about to load with a sequential read (exercises
+    // the storage as well as the bytes). GGUF carries no content checksum, so
+    // a silently corrupted copy loads fine and then poisons the forward pass
+    // with NaN logits — this line in the log is how such copies are caught
+    // (compare the value across devices carrying the same model). FNV-1a 64:
+    // a fingerprint, never an integrity guarantee.
+    {
+        const int fd = open(file.c_str(), O_RDONLY);
+        if (fd >= 0) {
+            uint64_t h = 1469598103934665603ULL;
+            long long total = 0;
+            std::vector<char> buf(4 << 20);
+            ssize_t n;
+            while ((n = read(fd, buf.data(), buf.size())) > 0) {
+                for (ssize_t i = 0; i < n; ++i) {
+                    h = (h ^ static_cast<uint8_t>(buf[static_cast<size_t>(i)])) * 1099511628211ULL;
+                }
+                total += n;
+            }
+            close(fd);
+            ALOGI("loadModel: file fnv1a=%08x%08x size=%lld",
+                  static_cast<uint32_t>(h >> 32), static_cast<uint32_t>(h), total);
+        }
+    }
+
     llama_model_params mp = llama_model_default_params();
     // CPU-only: the target tablet has no usable GPU offload; mmap keeps RSS low.
     mp.n_gpu_layers = 0;
-    e->model = llama_load_model_from_file(file.c_str(), mp);
+    e->model = llama_model_load_from_file(file.c_str(), mp);
     if (e->model == nullptr) {
         delete e;
         throw_java(env, "java/io/IOException", "failed to load model file");
         return 0;
     }
-    e->n_embd = llama_n_embd(e->model);
-    e->n_vocab = llama_n_vocab(e->model);
+    e->vocab = llama_model_get_vocab(e->model);
+    e->n_embd = llama_model_n_embd(e->model);
+    e->n_vocab = e->vocab != nullptr ? llama_vocab_n_tokens(e->vocab) : 0;
     e->n_ctx = n_ctx > 0 ? n_ctx : 2048;
 
-    // Cache the token embedding table for input-embedding lookup.
-    ggml_tensor * tok_embd = llama_get_model_tensor(e->model, "token_embd.weight");
-    if (tok_embd != nullptr && tok_embd->data != nullptr) {
-        e->tok_embd_data = tok_embd->data;
-        e->tok_embd_type = tok_embd->type;
-        e->tok_embd_row_bytes = ggml_row_size(tok_embd->type, tok_embd->ne[0]);
+    // Cache the token embedding table for input-embedding lookup. v0.5.0
+    // removed llama_get_model_tensor, so locate the tensor through the GGUF
+    // metadata (no_alloc) and keep a private mmap of the file bytes.
+    if (e->vocab != nullptr) {
+        gguf_init_params gp{};
+        gp.no_alloc = true;
+        gp.ctx = nullptr;
+        gguf_context * gguf = gguf_init_from_file(file.c_str(), gp);
+        if (gguf != nullptr) {
+            const int64_t idx = gguf_find_tensor(gguf, "token_embd.weight");
+            if (idx >= 0) {
+                const size_t offset = gguf_get_data_offset(gguf) +
+                                      gguf_get_tensor_offset(gguf, idx);
+                e->tok_embd_type = gguf_get_tensor_type(gguf, idx);
+                e->tok_embd_row_bytes = ggml_row_size(e->tok_embd_type, e->n_embd);
+                if (!map_tok_embd(e, file, offset)) {
+                    e->tok_embd_data = nullptr;   // fall back to text handling
+                }
+            }
+            gguf_free(gguf);
+        }
     }
+    ALOGI("loadModel: n_embd=%d n_vocab=%d token_embd=%s", e->n_embd, e->n_vocab,
+          e->tok_embd_data != nullptr ? "mapped" : "unavailable");
 
     if (!build_ctx_gen(e, e->n_ctx, n_threads > 0 ? n_threads : 2)) {
-        llama_free_model(e->model);
+        llama_model_free(e->model);
         delete e;
         throw_java(env, "java/io/IOException", "failed to create llama context");
         return 0;
@@ -390,7 +542,8 @@ Java_com_tree4five_gguf_LlmNative_freeModel(JNIEnv * env, jobject /*thiz*/, jlon
     std::lock_guard<std::mutex> lock(e->mutex);
     if (e->ctx_embd) { llama_free(e->ctx_embd); e->ctx_embd = nullptr; }
     if (e->ctx_gen) { llama_free(e->ctx_gen); e->ctx_gen = nullptr; }
-    if (e->model) { llama_free_model(e->model); e->model = nullptr; }
+    if (e->model) { llama_model_free(e->model); e->model = nullptr; }
+    if (e->tok_embd_map) { munmap(e->tok_embd_map, e->tok_embd_map_size); e->tok_embd_map = nullptr; }
     delete e;  // safe: the caller must never reuse the handle after freeModel
 }
 
@@ -409,7 +562,7 @@ Java_com_tree4five_gguf_LlmNative_getContextLength(JNIEnv * env, jobject /*thiz*
     if (e == nullptr || e->model == nullptr) { return -1; }
     // Value straight from the GGUF metadata (train context window), capped by
     // the runtime window this engine actually allocates.
-    int train = static_cast<int>(llama_n_ctx_train(e->model));
+    int train = static_cast<int>(llama_model_n_ctx_train(e->model));
     return train > 0 ? std::min(train, e->n_ctx) : e->n_ctx;
 }
 
@@ -420,12 +573,12 @@ Java_com_tree4five_gguf_LlmNative_tokenize(JNIEnv * env, jobject /*thiz*/, jlong
     if (e == nullptr) { return nullptr; }
     const std::string s = to_std_string(env, text);
     const bool add_special_b = add_special == JNI_TRUE;
-    int n = llama_tokenize(e->model, s.data(), static_cast<int>(s.size()), nullptr, 0,
+    int n = llama_tokenize(e->vocab, s.data(), static_cast<int>(s.size()), nullptr, 0,
                            add_special_b, parse_special == JNI_TRUE);
     if (n < 0) { n = -n; }
     if (n <= 0) { return env->NewIntArray(0); }
     std::vector<llama_token> tokens(static_cast<size_t>(n));
-    const int written = llama_tokenize(e->model, s.data(), static_cast<int>(s.size()),
+    const int written = llama_tokenize(e->vocab, s.data(), static_cast<int>(s.size()),
                                        tokens.data(), n, add_special_b, parse_special == JNI_TRUE);
     if (written < 0) {
         throw_java(env, "java/lang/IllegalStateException", "tokenization failed");
@@ -443,10 +596,10 @@ Java_com_tree4five_gguf_LlmNative_tokenToPiece(JNIEnv * env, jobject /*thiz*/, j
     auto * e = engine_of(env, handle);
     if (e == nullptr) { return nullptr; }
     std::vector<char> piece(256);
-    int n = llama_token_to_piece(e->model, token, piece.data(), static_cast<int>(piece.size()), 0, true);
+    int n = llama_token_to_piece(e->vocab, token, piece.data(), static_cast<int>(piece.size()), 0, true);
     if (n < 0) {
         piece.resize(static_cast<size_t>(-n));
-        n = llama_token_to_piece(e->model, token, piece.data(), static_cast<int>(piece.size()), 0, true);
+        n = llama_token_to_piece(e->vocab, token, piece.data(), static_cast<int>(piece.size()), 0, true);
     }
     if (n <= 0) { return env->NewStringUTF(""); }
     return env->NewStringUTF(std::string(piece.data(), static_cast<size_t>(n)).c_str());
@@ -510,14 +663,16 @@ Java_com_tree4five_gguf_LlmNative_embedText(JNIEnv * env, jobject /*thiz*/, jlon
             cp.n_threads_batch = 2;
             cp.pooling_type = LLAMA_POOLING_TYPE_MEAN;
             cp.embeddings = true;
-            e->ctx_embd = llama_new_context_with_model(e->model, cp);
+            e->ctx_embd = llama_init_from_model(e->model, cp);
             if (e->ctx_embd == nullptr) {
                 throw_java(env, "java/lang/IllegalStateException", "failed to create embedding context");
                 return nullptr;
             }
         }
-        llama_batch batch = llama_batch_get_one(tokens.data(), static_cast<int>(tokens.size()), 0, 0);
-        if (safe_decode(e->ctx_embd, batch) != 0) {
+        llama_batch batch = make_token_batch(tokens.data(), static_cast<int>(tokens.size()), 0);
+        const int rc = safe_decode(e->ctx_embd, batch);
+        llama_batch_free(batch);
+        if (rc != 0) {
             throw_java(env, "java/lang/IllegalStateException", "embedding decode failed");
             return nullptr;
         }
@@ -581,17 +736,20 @@ Java_com_tree4five_gguf_LlmNative_generate(JNIEnv * env, jobject /*thiz*/, jlong
     }
 
     llama_context * ctx = e->ctx_gen;
-    llama_kv_cache_clear(ctx);
+    llama_memory_clear(llama_get_memory(ctx), true);
     e->stop.store(false);
 
     int pos = 0;
     while (pos < static_cast<int>(tokens.size())) {
         const int chunk = std::min(kMaxBatch, static_cast<int>(tokens.size()) - pos);
-        llama_batch batch = llama_batch_get_one(tokens.data() + pos, chunk, pos, 0);
-        if (safe_decode(ctx, batch) != 0) { return -1; }
+        llama_batch batch = make_token_batch(tokens.data() + pos, chunk, pos);
+        const int rc = safe_decode(ctx, batch);
+        llama_batch_free(batch);
+        if (rc != 0) { return -1; }
         pos += chunk;
     }
-    // logits==nullptr meant "last position only", so -1 indexes that output.
+    // logits was set on the last position of every chunk, so -1 indexes the
+    // logits the sampling loop wants.
 
     return run_sampling(e, ctx, env, callback, n_predict, temperature, top_k, top_p, pos,
                         tokens);
@@ -622,7 +780,7 @@ Java_com_tree4five_gguf_LlmNative_generateFromEmbeddings(JNIEnv * env, jobject /
     env->GetFloatArrayRegion(vectors, 0, expected, flat.data());
 
     llama_context * ctx = e->ctx_gen;
-    llama_kv_cache_clear(ctx);
+    llama_memory_clear(llama_get_memory(ctx), true);
     e->stop.store(false);
 
     const std::string followup = to_std_string(env, followup_prompt);
@@ -665,8 +823,10 @@ Java_com_tree4five_gguf_LlmNative_generateFromEmbeddings(JNIEnv * env, jobject /
             int p2 = 0;
             while (p2 < static_cast<int>(followup_tokens.size())) {
                 const int chunk = std::min(kMaxBatch, static_cast<int>(followup_tokens.size()) - p2);
-                llama_batch batch = llama_batch_get_one(followup_tokens.data() + p2, chunk, pos, 0);
-                if (safe_decode(ctx, batch) != 0) { return -1; }
+                llama_batch batch = make_token_batch(followup_tokens.data() + p2, chunk, pos);
+                const int rc = safe_decode(ctx, batch);
+                llama_batch_free(batch);
+                if (rc != 0) { return -1; }
                 pos += chunk;
                 p2 += chunk;
             }
