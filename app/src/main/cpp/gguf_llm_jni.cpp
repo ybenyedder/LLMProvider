@@ -17,7 +17,11 @@
 //     continuous positions.
 //   - llama_batch_init leaves n_tokens, pos/n_seq_id/seq_id/logits
 //     UNINITIALIZED (zeroed): every field must be written before decode.
-//   - Sampling is the legacy API (llama_sample_temp/top_k/top_p/token[_greedy]).
+//   - Sampling is the legacy API (llama_sample_temp/top_k/top_p/token[_greedy])
+//     with a hand-rolled repetition penalty on top: greedy decoding (the
+//     service constant temperature) cannot escape a repetition loop once a
+//     token starts feeding back on itself — qwen2.5-0.5b q4 on arm64 emitted
+//     512× '!' while the x86_64 build escaped by luckier numerics.
 //
 // JNI pitfalls handled here:
 //   - JavaVM cached in JNI_OnLoad; GetEnv + attach for foreign native threads.
@@ -30,6 +34,7 @@
 #include <atomic>
 #include <cstring>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -174,8 +179,27 @@ struct CallbackRef {
 // Reads the logits of the last output position and samples one token.
 // llama.cpp throws C++ exceptions on invalid access; none may cross the JNI
 // boundary (std::terminate), so every risky read is guarded here.
-llama_token sample_next(llama_context * ctx, float temperature, int top_k, float top_p) {
-    const float * logits = nullptr;
+// Repetition damping (this llama.cpp dropped the legacy
+// llama_sample_repetition_penalty): a token seen in the recent window gets
+// its logit pushed down, so greedy decoding can no longer lock into a loop.
+static constexpr float kRepeatPenalty = 1.10f;   // 1.0 = disabled
+static constexpr int kPenaltyLastN = 64;
+
+static void damp_repeats(float * logits, const int n_vocab,
+                         const std::vector<llama_token> & recent) {
+    if (kRepeatPenalty == 1.0f || recent.empty()) { return; }
+    const int n = std::min<int>(kPenaltyLastN, static_cast<int>(recent.size()));
+    std::set<llama_token> seen(recent.end() - n, recent.end());
+    for (const llama_token t : seen) {
+        if (t < 0 || t >= n_vocab) { continue; }
+        logits[t] = (logits[t] <= 0.0f) ? logits[t] * kRepeatPenalty
+                                        : logits[t] / kRepeatPenalty;
+    }
+}
+
+llama_token sample_next(llama_context * ctx, float temperature, int top_k, float top_p,
+                        const std::vector<llama_token> & recent) {
+    float * logits = nullptr;
     try {
         logits = llama_get_logits_ith(ctx, -1);
     } catch (const std::exception & ex) {
@@ -184,6 +208,7 @@ llama_token sample_next(llama_context * ctx, float temperature, int top_k, float
     }
     if (logits == nullptr) { return llama_token_eos(llama_get_model(ctx)); }
     const int n_vocab = llama_n_vocab(llama_get_model(ctx));
+    damp_repeats(logits, n_vocab, recent);
 
     std::vector<llama_token_data> candidates;
     candidates.reserve(static_cast<size_t>(n_vocab));
@@ -261,13 +286,17 @@ bool append_piece(LlmEngine * e, llama_token tok, std::string & out) {
 
 // Sampling loop shared by both generation entry points. `pos` is the next KV
 // position; every sampled token is decoded at pos++ (continuous positions).
+// `prompt` seeds the repetition window (latent-prefill paths pass the text
+// follow-up tokens; the latent prefix itself carries no token ids).
 int run_sampling(LlmEngine * e, llama_context * ctx, JNIEnv * env, jobject callback,
-                 int n_predict, float temperature, int top_k, float top_p, int pos) {
+                 int n_predict, float temperature, int top_k, float top_p, int pos,
+                 const std::vector<llama_token> & prompt) {
     CallbackRef cb;
     const bool has_cb = cb.init(env, callback);
+    std::vector<llama_token> recent(prompt);
     int produced = 0;
     while (produced < n_predict && !e->stop.load()) {
-        const llama_token tok = sample_next(ctx, temperature, top_k, top_p);
+        const llama_token tok = sample_next(ctx, temperature, top_k, top_p, recent);
         if (produced == 0) {
             ALOGI("sampling: first token=%d (eos=%d)", tok, llama_token_eos(e->model));
         }
@@ -279,6 +308,8 @@ int run_sampling(LlmEngine * e, llama_context * ctx, JNIEnv * env, jobject callb
         }
         llama_batch batch = llama_batch_get_one(const_cast<llama_token *>(&tok), 1, pos, 0);
         if (safe_decode(ctx, batch) != 0) { break; }
+        recent.push_back(tok);
+        if (recent.size() > 4096) { recent.erase(recent.begin(), recent.begin() + 2048); }
         ++pos;
         ++produced;
     }
@@ -562,7 +593,8 @@ Java_com_tree4five_gguf_LlmNative_generate(JNIEnv * env, jobject /*thiz*/, jlong
     }
     // logits==nullptr meant "last position only", so -1 indexes that output.
 
-    return run_sampling(e, ctx, env, callback, n_predict, temperature, top_k, top_p, pos);
+    return run_sampling(e, ctx, env, callback, n_predict, temperature, top_k, top_p, pos,
+                        tokens);
 }
 
 // Generate from injected embeddings: `vectors` is a flat float array holding
@@ -623,16 +655,17 @@ Java_com_tree4five_gguf_LlmNative_generateFromEmbeddings(JNIEnv * env, jobject /
     ALOGI("latent prefill done: pos=%d followup_empty=%d", pos, followup_empty ? 1 : 0);
 
     // 2) Optional text follow-up.
+    std::vector<llama_token> followup_tokens;
     if (!followup_empty) {
-        std::vector<llama_token> tokens;
-        if (tokenize_to(e, followup, tokens, /*add_special=*/true) > 0) {
-            if (static_cast<int>(tokens.size()) > e->n_ctx - pos - 4) {
-                tokens.resize(static_cast<size_t>(std::max(0, e->n_ctx - pos - 4)));
+        if (tokenize_to(e, followup, followup_tokens, /*add_special=*/true) > 0) {
+            if (static_cast<int>(followup_tokens.size()) > e->n_ctx - pos - 4) {
+                followup_tokens.resize(
+                    static_cast<size_t>(std::max(0, e->n_ctx - pos - 4)));
             }
             int p2 = 0;
-            while (p2 < static_cast<int>(tokens.size())) {
-                const int chunk = std::min(kMaxBatch, static_cast<int>(tokens.size()) - p2);
-                llama_batch batch = llama_batch_get_one(tokens.data() + p2, chunk, pos, 0);
+            while (p2 < static_cast<int>(followup_tokens.size())) {
+                const int chunk = std::min(kMaxBatch, static_cast<int>(followup_tokens.size()) - p2);
+                llama_batch batch = llama_batch_get_one(followup_tokens.data() + p2, chunk, pos, 0);
                 if (safe_decode(ctx, batch) != 0) { return -1; }
                 pos += chunk;
                 p2 += chunk;
@@ -641,7 +674,8 @@ Java_com_tree4five_gguf_LlmNative_generateFromEmbeddings(JNIEnv * env, jobject /
     }
 
     // 3) Sampling loop (logits from the last decoded position).
-    return run_sampling(e, ctx, env, callback, n_predict, temperature, top_k, top_p, pos);
+    return run_sampling(e, ctx, env, callback, n_predict, temperature, top_k, top_p, pos,
+                        followup_tokens);
 }
 
 JNIEXPORT void JNICALL
