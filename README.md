@@ -1,16 +1,12 @@
-# Tree4Five LLM Provider 🌲5️⃣ — RustingStrata v2.0 Edition
+# Tree4Five LLM Provider 🌲5️⃣ — Auralis + RustingStrata v2.1 Edition
 
-**Tree4Five LLM Provider** is a high-performance, 100% offline local LLM inference server for Android, powered by a **pure-Rust inference engine derived from [RustingStrata](https://github.com/ybenyedder/RustingStrata)** (`libggufllm.so`). It exposes a backward-compatible cross-app AIDL service (`ILLMService`) **and** an optional embedded OpenAI/Ollama HTTP API server (`127.0.0.1:11435`).
+**Tree4Five LLM Provider** is a high-performance, 100% offline local LLM inference server for Android, powered by a **pure-Rust inference engine derived from [RustingStrata](https://github.com/ybenyedder/RustingStrata)** (`libggufllm.so`) and dressed in a **minimal OLED Auralis UI**. It exposes a backward-compatible cross-app AIDL service (`ILLMService`) **and** an optional embedded OpenAI/Ollama HTTP API server (`127.0.0.1:11435`).
 
-## 🚀 What's New in v2.0.0 (Pure-Rust Engine)
-- **Bye-bye `llama.cpp` — Hello Pure Rust (`RustingStrata`):** Complete replacement of the C++/CMake engine with a zero-C-dependency Rust engine (`app/src/main/rust/ggufllm`) compiled natively for `arm64-v8a` and `x86_64`.
-- **SIMD Quantized Kernels (`Q8_K`):** Hand-tuned ARM64 NEON (`ARMv8.0-A` safe) and x86_64 AVX2+FMA integer dot products across 25 GGML formats (`Q4_0`, `Q4_K`, `Q6_K`, `Q8_0`, `IQ4_NL`, `IQ4_XS`, `IQ2_*`, `IQ3_*`, `TQ1_0`, `TQ2_0`, `F16`, `BF16`, `F32`, etc.).
-- **Batched Prompt Prefill:** Multi-token batched matrix projection (`rows_multi`) reads weights once per chunk instead of per token.
-- **Prefix KV-Cache Reuse:** Automatically reuses shared KV prefixes across turns so multi-turn prompts and system prompts resume instantly.
-- **N-gram Speculative Decoding:** Zero-memory `ngram-simple` + `ngram-cache` drafter proposes up to 4 candidate tokens verified in a single batched pass during greedy decoding.
-- **Broad GGUF Architecture Support:** `qwen2`, `qwen2moe`, `qwen3`, `qwen3moe`, `qwen35`, `qwen35moe`, `qwen3next`, `qwen4exp`, `flint`, `llama`, `mistral`, `smollm`, `gemma`, `gemma2`, `gemma4`, `phi3`, and `nomic-bert`.
-- **Embedded Local HTTP API (`127.0.0.1:11435`):** Optional one-tap toggle exposing `/v1/chat/completions` (SSE streaming), `/v1/embeddings`, `/v1/models`, `/api/generate`, `/api/chat`, `/api/tags`, and `/health`.
-- **Redesigned Dark Telemetry UI:** Live Rust engine metrics (`arch`, `quant`, `SIMD`, `prefill tok/s`, `decode tok/s`, `N-gram hits`, `KV usage`), 6 model presets (`Qwen3-0.6B`, `Qwen2.5-0.5B`, `Qwen2.5-1.5B`, `Qwen3-1.7B`, `SmolLM2-360M`, `nomic-embed`), cancellable atomic `.part` downloads with `GGUF` magic validation, speed/ETA readout, model deletion/reloading, and interactive benchmark playground.
+## ✨ What's New in v2.1.0 (Auralis UI) + v2.0.0 Engine
+- **Auralis Pure-OLED Design System:** Pure `#000000` black canvas, `#111114` tonal cards with `1dp` hairline `#24242C` borders, `#F4F4F5` Liner pearl pill CTAs, crimson `#FA233B` resonance accents, custom waveform emblem, and Android 15/16 edge-to-edge inset handling.
+- **4-Tile Bionic Telemetry + 3-Tab Segmented Switcher:** Live throughput (`tok/s`), native process RSS & model footprint, KV context / prefix cache hits, and speculative N-gram acceptance rate above animated `Studio`, `Modèles`, and `Moteur` panels.
+- **Pure-Rust Engine (`libggufllm.so`):** Zero-C/C++ `RustingStrata` inference core (`arm64-v8a` NEON & `x86_64` AVX2+FMA `Q8_K` kernels across 25 GGML quant formats, 16 KiB ELF alignment).
+- **Embedded Local HTTP API (`127.0.0.1:11435`):** One-tap OpenAI (`/v1/chat/completions`, `/v1/embeddings`, `/v1/models`) & Ollama (`/api/generate`, `/api/chat`, `/api/tags`, `/health`) gateway with instant cURL copy button.
 
 ## Build Instructions
 

@@ -1,731 +1,1269 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mainScrollView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/colorBackground">
+    android:background="@color/auralisBg"
+    android:clipToPadding="false"
+    android:fillViewport="true"
+    android:overScrollMode="never">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <LinearLayout
+        android:id="@+id/rootContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/colorSurface">
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="28dp">
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+        <!-- =============================================================== -->
+        <!-- TOP EDITORIAL HEADER (Auralis Pure Black)                       -->
+        <!-- =============================================================== -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/colorSurface"
-            app:title="Tree4Five LLM Provider"
-            app:subtitle="RustingStrata v2.0 Pure-Rust Engine"
-            app:titleTextColor="@color/colorOnBackground"
-            app:subtitleTextColor="@color/colorPrimary" />
-    </com.google.android.material.appbar.AppBarLayout>
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingBottom="14dp">
 
-    <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:padding="14dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+            <ImageView
+                android:id="@+id/ivLogo"
+                android:layout_width="38dp"
+                android:layout_height="38dp"
+                android:contentDescription="LLMProvider Logo"
+                android:src="@drawable/ic_auralis_logo" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.12"
+                    android:text="AURALIS · RUSTINGSTRATA"
+                    android:textColor="@color/auralisAccent"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:letterSpacing="-0.02"
+                    android:text="LLMProvider"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvStatusBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_auralis_badge_idle"
+                android:fontFamily="monospace"
+                android:letterSpacing="0.06"
+                android:paddingHorizontal="11dp"
+                android:paddingVertical="5dp"
+                android:text="IDLE"
+                android:textColor="@color/auralisTextMuted"
+                android:textSize="10.5sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Active model + Start/Stop pill row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="14dp"
+            android:background="@drawable/bg_auralis_card"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.08"
+                    android:text="ACTIVE MODEL"
+                    android:textColor="@color/auralisTextFaint"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvActiveModelSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="middle"
+                    android:singleLine="true"
+                    android:text="Aucun modèle sélectionné"
+                    android:textColor="@color/auralisPearl"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStartBind"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="14dp"
+                android:text="Démarrer"
+                android:textAllCaps="false"
+                android:textColor="@color/auralisInk"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/auralisPearl"
+                app:cornerRadius="999dp"
+                app:elevation="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStopService"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="12dp"
+                android:text="Stop"
+                android:textAllCaps="false"
+                android:textColor="@color/auralisTextMuted"
+                android:textSize="12sp"
+                app:backgroundTint="@color/auralisSurface2"
+                app:cornerRadius="999dp"
+                app:strokeColor="@color/auralisLine"
+                app:strokeWidth="1dp" />
+        </LinearLayout>
+
+        <!-- =============================================================== -->
+        <!-- 4-TILE BIONIC TELEMETRY STRIP (2x2 Bento)                       -->
+        <!-- =============================================================== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <!-- Tile 1: Throughput -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="11dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.08"
+                    android:text="THROUGHPUT"
+                    android:textColor="@color/auralisTextFaint"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricThroughput"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="monospace"
+                    android:text="-- tok/s"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricThroughputSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="NEON / Rust · --"
+                    android:textColor="@color/auralisTextMuted"
+                    android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <!-- Tile 2: Memory -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="11dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.08"
+                    android:text="MÉMOIRE"
+                    android:textColor="@color/auralisTextFaint"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricMemory"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="monospace"
+                    android:text="-- MiB"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricMemorySub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="Model: -- · KV: --"
+                    android:textColor="@color/auralisTextMuted"
+                    android:textSize="10.5sp" />
+            </LinearLayout>
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="16dp"
+            android:orientation="horizontal">
 
-            <!-- CARD 0: Live Telemetry Dashboard -->
-            <com.google.android.material.card.MaterialCardView
+            <!-- Tile 3: KV Cache -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="11dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.08"
+                    android:text="CACHE KV"
+                    android:textColor="@color/auralisTextFaint"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricCache"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="monospace"
+                    android:text="0 / --"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricCacheSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="Prefix hits: 0"
+                    android:textColor="@color/auralisTextMuted"
+                    android:textSize="10.5sp" />
+            </LinearLayout>
+
+            <!-- Tile 4: Speculative N-Gram -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="11dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.08"
+                    android:text="SPECULATIVE"
+                    android:textColor="@color/auralisTextFaint"
+                    android:textSize="9.5sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricSpec"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:fontFamily="monospace"
+                    android:text="-- %"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvMetricSpecSub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:text="Drafted: 0 · 0/0"
+                    android:textColor="@color/auralisTextMuted"
+                    android:textSize="10.5sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- =============================================================== -->
+        <!-- 3-TAB SEGMENTED PILL SWITCHER (Auralis Signature Pill Dock)     -->
+        <!-- =============================================================== -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_auralis_pill_nav"
+            android:orientation="horizontal"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/tabStudio"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_auralis_tab_active"
+                android:gravity="center"
+                android:text="Studio"
+                android:textColor="@color/auralisInk"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tabModels"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Modèles"
+                android:textColor="@color/auralisTextMuted"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tabEngine"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="Moteur"
+                android:textColor="@color/auralisTextMuted"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- =============================================================== -->
+        <!-- PANEL 1: STUDIO (Playground & Benchmark)                        -->
+        <!-- =============================================================== -->
+        <LinearLayout
+            android:id="@+id/panelStudio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="visible">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp"
-                app:cardBackgroundColor="@color/colorSurface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/colorStroke"
-                app:strokeWidth="1dp">
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:padding="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="14dp">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:letterSpacing="0.09"
+                        android:text="PROMPT STUDIO"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnBenchmark"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_auralis_badge_accent"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="Benchmark"
+                        android:textColor="@color/auralisPearl"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btnTestEmbed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/bg_auralis_chip"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="Embed Q8"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Quick-prompt pill strip -->
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:scrollbars="none">
 
                     <LinearLayout
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
                         android:orientation="horizontal">
 
                         <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="RUST ENGINE TELEMETRY"
-                            android:textColor="@color/colorSecondary"
-                            android:textSize="12sp"
-                            android:textStyle="bold"
-                            android:letterSpacing="0.08" />
-
-                        <TextView
-                            android:id="@+id/tvEngineBadge"
+                            android:id="@+id/chipPromptSummarize"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:background="@color/colorSurfaceElevated"
-                            android:paddingHorizontal="10dp"
-                            android:paddingVertical="4dp"
-                            android:text="Idle · Not Bound"
-                            android:textColor="@color/colorMuted"
-                            android:textSize="11sp"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_auralis_chip"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="6dp"
+                            android:text="Résumer"
+                            android:textColor="@color/auralisPearl"
+                            android:textSize="11.5sp" />
+
+                        <TextView
+                            android:id="@+id/chipPromptCode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_auralis_chip"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="6dp"
+                            android:text="Code Python"
+                            android:textColor="@color/auralisPearl"
+                            android:textSize="11.5sp" />
+
+                        <TextView
+                            android:id="@+id/chipPromptJson"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_auralis_chip"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="6dp"
+                            android:text="JSON strict"
+                            android:textColor="@color/auralisPearl"
+                            android:textSize="11.5sp" />
+
+                        <TextView
+                            android:id="@+id/chipPromptReason"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_auralis_chip"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="6dp"
+                            android:text="Logique"
+                            android:textColor="@color/auralisPearl"
+                            android:textSize="11.5sp" />
+                    </LinearLayout>
+                </HorizontalScrollView>
+
+                <EditText
+                    android:id="@+id/etPrompt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_auralis_input"
+                    android:gravity="top|start"
+                    android:hint="Saisis ton prompt ou choisis un préréglage..."
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:minLines="3"
+                    android:padding="13dp"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textColorHint="@color/auralisTextFaint"
+                    android:textSize="13.5sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnGenerate"
+                        android:layout_width="0dp"
+                        android:layout_height="44dp"
+                        android:layout_weight="1"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:text="Générer"
+                        android:textAllCaps="false"
+                        android:textColor="@color/auralisInk"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/auralisPearl"
+                        app:cornerRadius="999dp"
+                        app:elevation="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnStop"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="16dp"
+                        android:text="Stop"
+                        android:textAllCaps="false"
+                        android:textColor="@color/auralisAccent"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/auralisAccentSoft"
+                        app:cornerRadius="999dp"
+                        app:strokeColor="#581924"
+                        app:strokeWidth="1dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Streaming Output Console Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/tvStreamStats"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="monospace"
+                        android:text="TTFT -- · 0.0 tok/s · 0 chunks"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/btnCopyOutput"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_auralis_chip"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="Copier"
+                        android:textColor="@color/auralisPearl"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/btnClearOutput"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:background="@drawable/bg_auralis_chip"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="Effacer"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvOutput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_auralis_input"
+                    android:fontFamily="monospace"
+                    android:lineSpacingExtra="3dp"
+                    android:minHeight="160dp"
+                    android:padding="13dp"
+                    android:text="Prêt — sélectionne un modèle puis appuie sur Générer."
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textIsSelectable="true"
+                    android:textSize="12.5sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- =============================================================== -->
+        <!-- PANEL 2: MODÈLES (Catalogue & Téléchargement)                    -->
+        <!-- =============================================================== -->
+        <LinearLayout
+            android:id="@+id/panelModels"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Installed Models Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:letterSpacing="0.09"
+                        android:text="MODÈLES INSTALLÉS"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvInstalledModelsCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:text="0 GGUF"
+                        android:textColor="@color/auralisPearl"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:hint="Modèle GGUF actif"
+                    android:textColorHint="@color/auralisTextFaint"
+                    app:boxBackgroundColor="@color/auralisPaper"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxStrokeColor="@color/auralisLineStrong"
+                    app:boxStrokeWidth="1dp"
+                    app:endIconTint="@color/auralisTextMuted">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/spinnerModels"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="@color/auralisTextPrimary"
+                        android:textSize="13sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/tvStorageInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="monospace"
+                    android:text="Espace libre : -- GB"
+                    android:textColor="@color/auralisTextFaint"
+                    android:textSize="11sp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnReloadModel"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="1"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:text="Charger"
+                        android:textAllCaps="false"
+                        android:textColor="@color/auralisInk"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/auralisPearl"
+                        app:cornerRadius="999dp"
+                        app:elevation="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnImportModel"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="6dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="14dp"
+                        android:text="Importer"
+                        android:textAllCaps="false"
+                        android:textColor="@color/auralisPearl"
+                        android:textSize="12.5sp"
+                        app:backgroundTint="@color/auralisSurface2"
+                        app:cornerRadius="999dp"
+                        app:strokeColor="@color/auralisLine"
+                        app:strokeWidth="1dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDeleteModel"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:layout_marginStart="6dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="14dp"
+                        android:text="Supprimer"
+                        android:textAllCaps="false"
+                        android:textColor="@color/auralisDanger"
+                        android:textSize="12.5sp"
+                        app:backgroundTint="@color/auralisSurface2"
+                        app:cornerRadius="999dp"
+                        app:strokeColor="#482024"
+                        app:strokeWidth="1dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- HuggingFace Catalogue & Download Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.09"
+                    android:text="CATALOGUE HUGGINGFACE GGUF"
+                    android:textColor="@color/auralisTextMuted"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:hint="Préréglage recommandé"
+                    android:textColorHint="@color/auralisTextFaint"
+                    app:boxBackgroundColor="@color/auralisPaper"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxStrokeColor="@color/auralisLineStrong"
+                    app:boxStrokeWidth="1dp"
+                    app:endIconTint="@color/auralisTextMuted">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/spinnerPresetModels"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="none"
+                        android:textColor="@color/auralisTextPrimary"
+                        android:textSize="13sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <EditText
+                    android:id="@+id/etModelUrl"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_auralis_input"
+                    android:hint="URL directe .gguf ou content://..."
+                    android:inputType="textUri"
+                    android:padding="12dp"
+                    android:singleLine="true"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textColorHint="@color/auralisTextFaint"
+                    android:textSize="12.5sp" />
+
+                <ProgressBar
+                    android:id="@+id/progressBar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:layout_marginTop="12dp"
+                    android:max="100"
+                    android:progress="0"
+                    android:progressDrawable="@drawable/progress_auralis"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/layoutDownloadMeta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/tvProgress"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="monospace"
+                        android:text="0%"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/btnCancelDownload"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_auralis_badge_accent"
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="Annuler"
+                        android:textColor="@color/auralisAccent"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDownload"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="12dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="Télécharger GGUF"
+                    android:textAllCaps="false"
+                    android:textColor="@color/auralisInk"
+                    android:textSize="13.5sp"
+                    android:textStyle="bold"
+                    app:backgroundTint="@color/auralisPearl"
+                    app:cornerRadius="999dp"
+                    app:elevation="0dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- =============================================================== -->
+        <!-- PANEL 3: MOTEUR (RustingStrata & API Locale)                    -->
+        <!-- =============================================================== -->
+        <LinearLayout
+            android:id="@+id/panelEngine"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- 2x2 Hyperparameter Grid + Switches -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.09"
+                    android:text="PARAMÈTRES RUSTINGSTRATA"
+                    android:textColor="@color/auralisTextMuted"
+                    android:textSize="10.5sp"
+                    android:textStyle="bold" />
+
+                <!-- Row 1: Threads & Context -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_auralis_subcard"
+                        android:orientation="vertical"
+                        android:padding="11dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.06"
+                            android:text="THREADS CPU"
+                            android:textColor="@color/auralisTextFaint"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/etThreads"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:background="@null"
+                            android:fontFamily="monospace"
+                            android:inputType="number"
+                            android:text="4"
+                            android:textColor="@color/auralisTextPrimary"
+                            android:textSize="15sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/tvTelemetrySummary"
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_auralis_subcard"
+                        android:orientation="vertical"
+                        android:padding="11dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.06"
+                            android:text="CONTEXTE (N_CTX)"
+                            android:textColor="@color/auralisTextFaint"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/etCtx"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:background="@null"
+                            android:fontFamily="monospace"
+                            android:inputType="number"
+                            android:text="2048"
+                            android:textColor="@color/auralisTextPrimary"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Row 2: Max Tokens & Temperature -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_auralis_subcard"
+                        android:orientation="vertical"
+                        android:padding="11dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.06"
+                            android:text="MAX TOKENS"
+                            android:textColor="@color/auralisTextFaint"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/etMaxTokens"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:background="@null"
+                            android:fontFamily="monospace"
+                            android:inputType="number"
+                            android:text="512"
+                            android:textColor="@color/auralisTextPrimary"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_auralis_subcard"
+                        android:orientation="vertical"
+                        android:padding="11dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.06"
+                            android:text="TEMPÉRATURE"
+                            android:textColor="@color/auralisTextFaint"
+                            android:textSize="9.5sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/etTemp"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:background="@null"
+                            android:fontFamily="monospace"
+                            android:inputType="numberDecimal"
+                            android:text="0.0"
+                            android:textColor="@color/auralisTextPrimary"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Protocol & System Prompt -->
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:hint="Protocole Prompt"
+                    android:textColorHint="@color/auralisTextFaint"
+                    app:boxBackgroundColor="@color/auralisPaper"
+                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxStrokeColor="@color/auralisLine"
+                    app:boxStrokeWidth="1dp"
+                    app:endIconTint="@color/auralisTextMuted">
+
+                    <AutoCompleteTextView
+                        android:id="@+id/spinnerProtocol"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:inputType="none"
+                        android:textColor="@color/auralisTextPrimary"
+                        android:textSize="13sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <EditText
+                    android:id="@+id/etSystemPrompt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_auralis_input"
+                    android:hint="System prompt optionnel (laissé vide par défaut)..."
+                    android:inputType="textMultiLine"
+                    android:minLines="2"
+                    android:padding="12dp"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textColorHint="@color/auralisTextFaint"
+                    android:textSize="12.5sp" />
+
+                <!-- Feature Switches -->
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchSpecDecoding"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:checked="true"
+                    android:text="Décodage spéculatif N-Gram (greedy 4x)"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="13sp"
+                    app:thumbTint="@color/auralisPearl"
+                    app:trackTint="@color/auralisLineStrong" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchPrefixCache"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Réutilisation du cache préfixe KV"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="13sp"
+                    app:thumbTint="@color/auralisPearl"
+                    app:trackTint="@color/auralisLineStrong" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchHttpServer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:text="Serveur HTTP OpenAI / Ollama (:11435)"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="13sp"
+                    app:thumbTint="@color/auralisPearl"
+                    app:trackTint="@color/auralisLineStrong" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchKeepAlive"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="Garder le service actif en arrière-plan"
+                    android:textColor="@color/auralisTextPrimary"
+                    android:textSize="13sp"
+                    app:thumbTint="@color/auralisPearl"
+                    app:trackTint="@color/auralisLineStrong" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnApplyEngine"
+                        android:layout_width="0dp"
+                        android:layout_height="42dp"
+                        android:layout_weight="1"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:text="Appliquer"
+                        android:textAllCaps="false"
+                        android:textColor="@color/auralisInk"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        app:backgroundTint="@color/auralisPearl"
+                        app:cornerRadius="999dp"
+                        app:elevation="0dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnClearKv"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="42dp"
+                        android:layout_marginStart="8dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="16dp"
+                        android:text="Vider KV"
+                        android:textAllCaps="false"
+                        android:textColor="@color/auralisPearl"
+                        android:textSize="12.5sp"
+                        app:backgroundTint="@color/auralisSurface2"
+                        app:cornerRadius="999dp"
+                        app:strokeColor="@color/auralisLine"
+                        app:strokeWidth="1dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Local API Gateway Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_auralis_card"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:letterSpacing="0.09"
+                        android:text="PASSERELLE API LOCALE"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvHttpStatusBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_auralis_badge_idle"
                         android:fontFamily="monospace"
-                        android:lineSpacingExtra="3dp"
-                        android:text="Model: none\nBackend: libggufllm.so (RustingStrata v2.0)\nSpeed: -- prefill | -- decode"
-                        android:textColor="@color/colorOnSurface"
-                        android:textSize="12sp" />
-
-                    <TextView
-                        android:id="@+id/tvStorageInfo"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="Storage: checking..."
-                        android:textColor="@color/colorMuted"
-                        android:textSize="11sp" />
+                        android:paddingHorizontal="10dp"
+                        android:paddingVertical="4dp"
+                        android:text="HTTP OFF"
+                        android:textColor="@color/auralisTextMuted"
+                        android:textSize="10.5sp"
+                        android:textStyle="bold" />
                 </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
 
-            <!-- CARD 1: Model Manager & Downloads -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp"
-                app:cardBackgroundColor="@color/colorSurface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/colorStroke"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
+                <TextView
+                    android:id="@+id/tvHttpEndpoint"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="14dp">
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_auralis_input"
+                    android:fontFamily="monospace"
+                    android:padding="11dp"
+                    android:text="http://127.0.0.1:11435/v1/chat/completions"
+                    android:textColor="@color/auralisPearl"
+                    android:textIsSelectable="true"
+                    android:textSize="11.5sp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="10dp"
-                        android:text="1. Model Manager (GGUF)"
-                        android:textColor="@color/colorOnBackground"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="GGUF URL (http/https) or local URI"
-                        app:boxStrokeColor="@color/colorPrimary"
-                        app:hintTextColor="@color/colorMuted">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etModelUrl"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textUri"
-                            android:text="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
-                            android:textColor="@color/colorOnSurface"
-                            android:textSize="13sp" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <HorizontalScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:scrollbars="none">
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPresetQwen306b"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Qwen3-0.6B · Fast"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorPrimary" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPreset05b"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="Qwen2.5-0.5B · 470 MB"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPreset15b"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="Qwen2.5-1.5B · 1.0 GB"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPresetQwen317b"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="Qwen3-1.7B · Smart"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPresetSmol"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="SmolLM2-360M · Ultra-Lite"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPresetNomic"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="nomic-embed · 140 MB"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorSecondary" />
-                        </LinearLayout>
-                    </HorizontalScrollView>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnDownload"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:text="Fetch URL"
-                            app:icon="@android:drawable/ic_menu_save" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSelectFile"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:layout_weight="1"
-                            android:text="Pick File"
-                            android:textColor="@color/colorSecondary"
-                            app:strokeColor="@color/colorSecondary"
-                            app:icon="@android:drawable/ic_menu_gallery" />
-                    </LinearLayout>
-
-                    <com.google.android.material.progressindicator.LinearProgressIndicator
-                        android:id="@+id/progressBar"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:max="100"
-                        android:visibility="gone"
-                        app:indicatorColor="@color/colorPrimary"
-                        app:trackColor="@color/colorSurfaceElevated" />
-
-                    <LinearLayout
-                        android:id="@+id/layoutDownloadMeta"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:id="@+id/tvProgress"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:fontFamily="monospace"
-                            android:text="0%"
-                            android:textColor="@color/colorOnSurface"
-                            android:textSize="11sp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnCancelDownload"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Cancel"
-                            android:textColor="@color/colorDanger" />
-                    </LinearLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:hint="Installed Models">
-
-                        <AutoCompleteTextView
-                            android:id="@+id/spinnerModels"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:textColor="@color/colorOnSurface" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnReloadModel"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:text="Reload Model"
-                            android:textColor="@color/colorPrimary"
-                            app:strokeColor="@color/colorPrimary" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnDeleteModel"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:layout_weight="1"
-                            android:text="Delete Model"
-                            android:textColor="@color/colorDanger"
-                            app:strokeColor="@color/colorDanger" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- CARD 2: Engine Controls, Acceleration & Local HTTP Server -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="14dp"
-                app:cardBackgroundColor="@color/colorSurface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/colorStroke"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCopyCurl"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="14dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="10dp"
-                        android:text="2. Rust Engine &amp; Service Controls"
-                        android:textColor="@color/colorOnBackground"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="10dp"
-                        android:hint="Prompt Protocol">
-
-                        <AutoCompleteTextView
-                            android:id="@+id/spinnerProtocol"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="none"
-                            android:text="ChatML"
-                            android:textColor="@color/colorOnSurface" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="10dp"
-                        android:hint="System Prompt (optional)">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etSystemPrompt"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textMultiLine"
-                            android:maxLines="3"
-                            android:textColor="@color/colorOnSurface"
-                            android:textSize="13sp" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchSpecDecoding"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        android:text="N-gram Speculative Decoding (greedy speedup)"
-                        android:textColor="@color/colorOnSurface" />
-
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchPrefixCache"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        android:text="Prefix KV-Cache Reuse (instant multi-turn)"
-                        android:textColor="@color/colorOnSurface" />
-
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchHttpServer"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:checked="false"
-                        android:text="Local OpenAI/Ollama HTTP API (127.0.0.1:11435)"
-                        android:textColor="@color/colorSecondary" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:hint="Temp">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etTemp"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="numberDecimal"
-                                android:text="0.0"
-                                android:textColor="@color/colorOnSurface" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:hint="Max Tok">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etMaxTokens"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:text="512"
-                                android:textColor="@color/colorOnSurface" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:hint="Ctx">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etContext"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:text="2048"
-                                android:textColor="@color/colorOnSurface" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="Threads">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etThreads"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:text="4"
-                                android:textColor="@color/colorOnSurface" />
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnStartService"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="2"
-                            android:text="Start / Apply"
-                            app:icon="@android:drawable/ic_media_play" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnClearKv"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:text="Clear KV"
-                            android:textColor="@color/colorWarning"
-                            app:strokeColor="@color/colorWarning" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnStopService"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Stop Svc"
-                            android:textColor="@color/colorDanger"
-                            app:strokeColor="@color/colorDanger" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- CARD 3: Interactive Playground & Benchmark -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                app:cardBackgroundColor="@color/colorSurface"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/colorStroke"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="14dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:text="3. Playground &amp; Benchmark (AIDL)"
-                        android:textColor="@color/colorOnBackground"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <HorizontalScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:scrollbars="none">
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal">
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPromptPoem"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Poem"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPromptMath"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="Math"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPromptPython"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="Python"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPromptJson"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="JSON Tool"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorOnSurface" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPromptEmbed"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="Test Embed"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorSecondary" />
-
-                            <com.google.android.material.chip.Chip
-                                android:id="@+id/chipPromptBench"
-                                style="@style/Widget.MaterialComponents.Chip.Action"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="Speed Bench"
-                                app:chipBackgroundColor="@color/colorSurfaceElevated"
-                                android:textColor="@color/colorPrimary" />
-                        </LinearLayout>
-                    </HorizontalScrollView>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Prompt">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etPrompt"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="top"
-                            android:inputType="textMultiLine"
-                            android:lines="3"
-                            android:textColor="@color/colorOnSurface" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnTest"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
-                            android:layout_weight="1"
-                            android:text="Generate"
-                            app:icon="@android:drawable/ic_menu_send" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnStop"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
-                            android:layout_weight="1"
-                            android:text="Stop"
-                            android:textColor="@color/colorDanger"
-                            app:strokeColor="@color/colorDanger"
-                            app:icon="@android:drawable/ic_menu_close_clear_cancel" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            android:id="@+id/tvStreamStats"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:fontFamily="monospace"
-                            android:text="TTFT: -- | Speed: -- | Tokens: 0"
-                            android:textColor="@color/colorSecondary"
-                            android:textSize="11sp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnCopyOutput"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Copy"
-                            android:textColor="@color/colorPrimary" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnClearOutput"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Clear"
-                            android:textColor="@color/colorMuted" />
-                    </LinearLayout>
-
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        app:cardBackgroundColor="@color/colorBackground"
-                        app:cardCornerRadius="10dp"
-                        app:cardElevation="0dp"
-                        app:strokeColor="@color/colorStroke"
-                        app:strokeWidth="1dp">
-
-                        <TextView
-                            android:id="@+id/tvOutput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:minHeight="90dp"
-                            android:padding="12dp"
-                            android:text="Output will appear here..."
-                            android:textColor="@color/colorOnSurface"
-                            android:textIsSelectable="true"
-                            android:textSize="14sp" />
-                    </com.google.android.material.card.MaterialCardView>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
+                    android:layout_height="40dp"
+                    android:layout_marginTop="10dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:text="Copier la requête cURL"
+                    android:textAllCaps="false"
+                    android:textColor="@color/auralisPearl"
+                    android:textSize="12.5sp"
+                    app:backgroundTint="@color/auralisSurface2"
+                    app:cornerRadius="999dp"
+                    app:strokeColor="@color/auralisLine"
+                    app:strokeWidth="1dp" />
+            </LinearLayout>
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -3,9 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="ybenyedder/LLMProvider"
-TAG="${TAG:-v2.0.0}"
-AAB_FILE="$ROOT_DIR/LLMProvider-release-2.0.0.aab"
-APK_FILE="$ROOT_DIR/app/build/outputs/apk/release/LLMProvider-release-2.0.0.apk"
+TAG="${1:-${TAG:-v2.1.0}}"
+VERSION="${TAG#v}"
+AAB_FILE="$ROOT_DIR/LLMProvider-release-${VERSION}.aab"
+APK_FILE="$ROOT_DIR/app/build/outputs/apk/release/LLMProvider-release-${VERSION}.apk"
 
 TOKEN="${GITHUB_TOKEN:-}"
 if [[ -z "$TOKEN" && -f "$HOME/.git-credentials" ]]; then
@@ -13,7 +14,7 @@ if [[ -z "$TOKEN" && -f "$HOME/.git-credentials" ]]; then
 fi
 
 if [[ -z "$TOKEN" ]]; then
-    echo "Usage: GITHUB_TOKEN=ghp_... $0" >&2
+    echo "Usage: GITHUB_TOKEN=ghp_... $0 [tag]" >&2
     exit 1
 fi
 
@@ -34,9 +35,9 @@ git -c "http.https://github.com/.extraheader=$AUTH_HEADER" push origin main
 git -c "http.https://github.com/.extraheader=$AUTH_HEADER" push origin "refs/tags/$TAG" --force
 
 echo "=== Creating GitHub Release $TAG ==="
-RELEASE_NOTES="## Tree4Five LLM Provider v2.0.0 — RustingStrata Pure-Rust Edition\n\n- **Pure-Rust Engine (\`libggufllm.so\`):** Complete replacement of \`llama.cpp\` with RustingStrata v2.0 (zero C/C++ dependencies, 16 KiB ELF page alignment).\n- **SIMD Acceleration:** ARM64 NEON (\`ARMv8.0-A\`) & x86_64 AVX2+FMA \`Q8_K\` quantized kernels across 25 GGML formats.\n- **Inference Features:** Batched prompt prefill, prefix KV-cache reuse, N-gram speculative decoding, and lossless \`token_embd\` embedding parity.\n- **Embedded Local HTTP API (\`127.0.0.1:11435\`):** OpenAI (\`/v1/chat/completions\`, \`/v1/embeddings\`, \`/v1/models\`) and Ollama (\`/api/generate\`, \`/api/chat\`, \`/api/tags\`) alongside backward-compatible AIDL.\n- **UI/UX Overhaul:** Dark telemetry dashboard, 6 model presets, atomic \`.part\` GGUF-verified downloads with speed/ETA/cancel, model management, and benchmark playground."
+RELEASE_NOTES="## Tree4Five LLM Provider ${TAG} — Auralis Minimal OLED UI + RustingStrata Engine\n\n- **Auralis Design System:** Minimal Pure-OLED black (\`#000000\`), Liner pearl (\`#F4F4F5\`) & crimson (\`#FA233B\`) palette, \`1dp\` hairline borders, \`20dp\` tonal cards, custom vector waveform mark, and edge-to-edge inset handling.\n- **3-Tab Segmented Navigation & Bionic Telemetry:** Live 4-tile Bento telemetry (\`tok/s\`, native process RSS & GGUF size, KV cache / prefix hits, N-gram acceptance %) above smooth \`Studio\`, \`Modèles\`, and \`Moteur\` tabs.\n- **Studio & Local API Gateway:** One-tap quick prompt chips, full greedy + Q8 embedding benchmark mode, and \`http://127.0.0.1:11435\` cURL copy button.\n- **Pure-Rust Inference (\`libggufllm.so\`):** RustingStrata SIMD kernels (ARM64 NEON & x86_64 AVX2+FMA) with 16 KiB ELF alignment, batched prefill, prefix KV-cache reuse, and N-gram speculative decoding."
 
-PAYLOAD="$(python3 -c 'import json,sys; print(json.dumps({"tag_name": sys.argv[1], "target_commitish": "main", "name": "v2.0.0 — RustingStrata Pure-Rust Engine", "body": sys.argv[2].replace("\\n", "\n"), "draft": False, "prerelease": False}))' "$TAG" "$RELEASE_NOTES")"
+PAYLOAD="$(python3 -c 'import json,sys; print(json.dumps({"tag_name": sys.argv[1], "target_commitish": "main", "name": f"{sys.argv[1]} — Auralis OLED Edition + RustingStrata", "body": sys.argv[2].replace("\\n", "\n"), "draft": False, "prerelease": False}))' "$TAG" "$RELEASE_NOTES")"
 
 RESP="$(curl -s -w "\n%{http_code}" -X POST \
     -H "Authorization: Bearer $TOKEN" \

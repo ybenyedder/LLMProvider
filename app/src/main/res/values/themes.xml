@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.Tree4Five" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryVariant">@color/colorPrimaryVariant</item>
-        <item name="colorOnPrimary">@color/colorOnPrimary</item>
-        <item name="colorSecondary">@color/colorSecondary</item>
-        <item name="colorSecondaryVariant">@color/colorSecondaryVariant</item>
-        <item name="colorOnSecondary">@color/colorOnSecondary</item>
-        <item name="android:colorBackground">@color/colorBackground</item>
-        <item name="colorSurface">@color/colorSurface</item>
-        <item name="colorOnBackground">@color/colorOnBackground</item>
-        <item name="colorOnSurface">@color/colorOnSurface</item>
-        <item name="android:statusBarColor">@color/colorBackground</item>
-        <item name="android:navigationBarColor">@color/colorBackground</item>
+        <item name="colorPrimary">@color/auralisPearl</item>
+        <item name="colorPrimaryVariant">@color/auralisSurface3</item>
+        <item name="colorOnPrimary">@color/auralisInk</item>
+        <item name="colorSecondary">@color/auralisAccent</item>
+        <item name="colorSecondaryVariant">@color/auralisAccentSoft</item>
+        <item name="colorOnSecondary">@color/auralisTextPrimary</item>
+        <item name="android:colorBackground">@color/auralisBg</item>
+        <item name="colorSurface">@color/auralisSurface1</item>
+        <item name="colorOnBackground">@color/auralisTextPrimary</item>
+        <item name="colorOnSurface">@color/auralisTextPrimary</item>
+        <item name="android:statusBarColor">@color/auralisBg</item>
+        <item name="android:navigationBarColor">@color/auralisBg</item>
+        <item name="android:windowBackground">@color/auralisBg</item>
+        <item name="colorControlActivated">@color/auralisAccent</item>
+        <item name="colorControlHighlight">#22FA233B</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.Auralis.Dialog</item>
+    </style>
+
+    <style name="ThemeOverlay.Auralis.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="android:background">@color/auralisSurface1</item>
+        <item name="colorSurface">@color/auralisSurface1</item>
+        <item name="colorOnSurface">@color/auralisTextPrimary</item>
+        <item name="colorPrimary">@color/auralisAccent</item>
     </style>
 </resources>
