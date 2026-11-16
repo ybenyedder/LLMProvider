@@ -1,17 +1,17 @@
 //! Scalar & SIMD-friendly f32 reference math and token sampler.
 
 pub fn rms_norm(x: &[f32], w: &[f32], eps: f32, out: &mut [f32]) {
-    let ms = x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32;
+    let ms = crate::simd::dot_f32_slice(x, x) / x.len() as f32;
     let s = 1.0 / (ms + eps).sqrt();
-    for ((o, v), w) in out.iter_mut().zip(x).zip(w) {
-        *o = v * s * w;
+    for ((o, &v), &wv) in out.iter_mut().zip(x).zip(w) {
+        *o = v * s * wv;
     }
 }
 
 pub fn rms_norm_unit(x: &[f32], eps: f32, out: &mut [f32]) {
-    let ms = x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32;
+    let ms = crate::simd::dot_f32_slice(x, x) / x.len() as f32;
     let s = 1.0 / (ms + eps).sqrt();
-    for (o, v) in out.iter_mut().zip(x) {
+    for (o, &v) in out.iter_mut().zip(x) {
         *o = v * s;
     }
 }
@@ -88,24 +88,32 @@ pub fn softmax_sink(x: &mut [f32], sink: Option<f32>) {
 /// NEOX-style rotary embedding on the first `n_rot` dims: pairs `(i, i + n_rot/2)`.
 pub fn rope_neox(x: &mut [f32], n_rot: usize, pos: usize, base: f32) {
     let half = n_rot / 2;
+    let step = (base as f64).powf(-2.0 / n_rot as f64);
+    let mut inv_freq = 1.0f64;
+    let p = pos as f64;
     for i in 0..half {
-        let theta = pos as f64 * (base as f64).powf(-2.0 * i as f64 / n_rot as f64);
-        let (s, c) = (theta.sin() as f32, theta.cos() as f32);
+        let (s64, c64) = (p * inv_freq).sin_cos();
+        let (s, c) = (s64 as f32, c64 as f32);
         let (a, b) = (x[i], x[i + half]);
         x[i] = a * c - b * s;
         x[i + half] = a * s + b * c;
+        inv_freq *= step;
     }
 }
 
 /// Standard interleaved rotary embedding (Llama/Mistral): pairs `(2*i, 2*i + 1)`.
 pub fn rope_norm(x: &mut [f32], n_rot: usize, pos: usize, base: f32) {
     let half = n_rot / 2;
+    let step = (base as f64).powf(-2.0 / n_rot as f64);
+    let mut inv_freq = 1.0f64;
+    let p = pos as f64;
     for i in 0..half {
-        let theta = pos as f64 * (base as f64).powf(-2.0 * i as f64 / n_rot as f64);
-        let (s, c) = (theta.sin() as f32, theta.cos() as f32);
+        let (s64, c64) = (p * inv_freq).sin_cos();
+        let (s, c) = (s64 as f32, c64 as f32);
         let (a, b) = (x[2 * i], x[2 * i + 1]);
         x[2 * i] = a * c - b * s;
         x[2 * i + 1] = a * s + b * c;
+        inv_freq *= step;
     }
 }
 

@@ -32,6 +32,9 @@ static SIGNS: [[i8; 8]; 128] = {
 pub fn simd_backend_name() -> &'static str {
     #[cfg(target_arch = "aarch64")]
     {
+        if std::arch::is_aarch64_feature_detected!("dotprod") {
+            return "ARM64-NEON-DOTPROD";
+        }
         return "ARM64-NEON";
     }
     #[cfg(target_arch = "x86_64")]
@@ -46,56 +49,66 @@ pub fn simd_backend_name() -> &'static str {
     "Scalar-Q8K"
 }
 
-pub fn quantize_q8k(x: &[f32]) -> Vec<Q8K> {
-    x.chunks(256)
-        .map(|b| {
-            let mut pad = [0f32; 256];
-            let b = if b.len() == 256 {
-                b
-            } else {
-                pad[..b.len()].copy_from_slice(b);
-                &pad[..]
-            };
-            let amax = b.iter().fold(0f32, |m, &v| m.max(v.abs()));
-            if amax == 0.0 {
-                return Q8K {
-                    d: 0.0,
-                    qs: [0; 256],
-                    bs: [0; 16],
-                };
-            }
-            let max = *b.iter().find(|v| v.abs() == amax).unwrap();
-            let is = -127.0 / max;
-            let mut qs = [0i8; 256];
+pub fn quantize_q8k_into(x: &[f32], out: &mut Vec<Q8K>) {
+    out.clear();
+    let n_blocks = x.len().div_ceil(256);
+    if out.capacity() < n_blocks {
+        out.reserve(n_blocks - out.capacity());
+    }
+    for b in x.chunks(256) {
+        let mut pad = [0f32; 256];
+        let b = if b.len() == 256 {
+            b
+        } else {
+            pad[..b.len()].copy_from_slice(b);
+            &pad[..]
+        };
+        let amax = b.iter().fold(0f32, |m, &v| m.max(v.abs()));
+        if amax == 0.0 {
+            out.push(Q8K {
+                d: 0.0,
+                qs: [0; 256],
+                bs: [0; 16],
+            });
+            continue;
+        }
+        let max = *b.iter().find(|v| v.abs() == amax).unwrap();
+        let is = -127.0 / max;
+        let mut qs = [0i8; 256];
 
-            #[cfg(target_arch = "x86_64")]
-            {
-                if std::arch::is_x86_feature_detected!("avx2") {
-                    unsafe { avx2::quant_block(is, b, &mut qs) };
-                } else {
-                    for (q, &v) in qs.iter_mut().zip(b) {
-                        *q = ((is * v).round_ties_even() as i32).clamp(-127, 127) as i8;
-                    }
-                }
-            }
-            #[cfg(target_arch = "aarch64")]
-            {
-                unsafe { neon::quant_block(is, b, &mut qs) };
-            }
-            #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
-            {
+        #[cfg(target_arch = "x86_64")]
+        {
+            if std::arch::is_x86_feature_detected!("avx2") {
+                unsafe { avx2::quant_block(is, b, &mut qs) };
+            } else {
                 for (q, &v) in qs.iter_mut().zip(b) {
                     *q = ((is * v).round_ties_even() as i32).clamp(-127, 127) as i8;
                 }
             }
-
-            let mut bs = [0i16; 16];
-            for (s, c) in bs.iter_mut().zip(qs.chunks_exact(16)) {
-                *s = c.iter().map(|&v| v as i16).sum();
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
+            unsafe { neon::quant_block(is, b, &mut qs) };
+        }
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            for (q, &v) in qs.iter_mut().zip(b) {
+                *q = ((is * v).round_ties_even() as i32).clamp(-127, 127) as i8;
             }
-            Q8K { d: 1.0 / is, qs, bs }
-        })
-        .collect()
+        }
+
+        let mut bs = [0i16; 16];
+        for (s, c) in bs.iter_mut().zip(qs.chunks_exact(16)) {
+            *s = c.iter().map(|&v| v as i16).sum();
+        }
+        out.push(Q8K { d: 1.0 / is, qs, bs });
+    }
+}
+
+pub fn quantize_q8k(x: &[f32]) -> Vec<Q8K> {
+    let mut out = Vec::with_capacity(x.len().div_ceil(256));
+    quantize_q8k_into(x, &mut out);
+    out
 }
 
 #[inline(always)]
@@ -807,21 +820,359 @@ mod neon {
     pub fn dot_f32(a: &[f32], b: &[f32]) -> f32 {
         unsafe {
             let n = a.len();
-            let mut acc = vdupq_n_f32(0.0);
+            let pa = a.as_ptr();
+            let pb = b.as_ptr();
+            let mut acc0 = vdupq_n_f32(0.0);
+            let mut acc1 = vdupq_n_f32(0.0);
+            let mut acc2 = vdupq_n_f32(0.0);
+            let mut acc3 = vdupq_n_f32(0.0);
             let mut i = 0;
+            while i + 16 <= n {
+                acc0 = vfmaq_f32(acc0, vld1q_f32(pa.add(i)), vld1q_f32(pb.add(i)));
+                acc1 = vfmaq_f32(acc1, vld1q_f32(pa.add(i + 4)), vld1q_f32(pb.add(i + 4)));
+                acc2 = vfmaq_f32(acc2, vld1q_f32(pa.add(i + 8)), vld1q_f32(pb.add(i + 8)));
+                acc3 = vfmaq_f32(acc3, vld1q_f32(pa.add(i + 12)), vld1q_f32(pb.add(i + 12)));
+                i += 16;
+            }
+            acc0 = vaddq_f32(vaddq_f32(acc0, acc1), vaddq_f32(acc2, acc3));
             while i + 4 <= n {
-                let va = vld1q_f32(a.as_ptr().add(i));
-                let vb = vld1q_f32(b.as_ptr().add(i));
-                acc = vfmaq_f32(acc, va, vb);
+                acc0 = vfmaq_f32(acc0, vld1q_f32(pa.add(i)), vld1q_f32(pb.add(i)));
                 i += 4;
             }
-            let mut s = vaddvq_f32(acc);
+            let mut s = vaddvq_f32(acc0);
             while i < n {
-                s += a[i] * b[i];
+                s += *pa.add(i) * *pb.add(i);
                 i += 1;
             }
             s
         }
+    }
+
+    #[inline(always)]
+    pub fn fma_f32(out: &mut [f32], v: &[f32], scale: f32) {
+        unsafe {
+            let n = out.len();
+            let po = out.as_mut_ptr();
+            let pv = v.as_ptr();
+            let vs = vdupq_n_f32(scale);
+            let mut i = 0;
+            while i + 16 <= n {
+                vst1q_f32(po.add(i), vfmaq_f32(vld1q_f32(po.add(i)), vld1q_f32(pv.add(i)), vs));
+                vst1q_f32(
+                    po.add(i + 4),
+                    vfmaq_f32(vld1q_f32(po.add(i + 4)), vld1q_f32(pv.add(i + 4)), vs),
+                );
+                vst1q_f32(
+                    po.add(i + 8),
+                    vfmaq_f32(vld1q_f32(po.add(i + 8)), vld1q_f32(pv.add(i + 8)), vs),
+                );
+                vst1q_f32(
+                    po.add(i + 12),
+                    vfmaq_f32(vld1q_f32(po.add(i + 12)), vld1q_f32(pv.add(i + 12)), vs),
+                );
+                i += 16;
+            }
+            while i + 4 <= n {
+                vst1q_f32(po.add(i), vfmaq_f32(vld1q_f32(po.add(i)), vld1q_f32(pv.add(i)), vs));
+                i += 4;
+            }
+            while i < n {
+                *po.add(i) += scale * *pv.add(i);
+                i += 1;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// ARMv8.2-A DOTPROD (`vdotq_s32`) Runtime-Dispatched Kernels
+// ============================================================================
+#[cfg(target_arch = "aarch64")]
+mod neon_dotprod {
+    use super::{Q8K, d16, q4_layout, q4_min};
+    use crate::quant::tables::KVALUES_IQ4NL;
+    use std::arch::aarch64::*;
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot_q8_0_impl(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe {
+            let mut sumf = 0.0f32;
+            for (i, b) in row.chunks_exact(34).enumerate() {
+                let (y, o) = (&xq[i / 8], (i % 8) * 32);
+                let w0 = vld1q_s8(b.as_ptr().add(2) as *const i8);
+                let w1 = vld1q_s8(b.as_ptr().add(18) as *const i8);
+                let q0 = vld1q_s8(y.qs.as_ptr().add(o));
+                let q1 = vld1q_s8(y.qs.as_ptr().add(o + 16));
+                let mut acc = vdotq_s32(vdupq_n_s32(0), w0, q0);
+                acc = vdotq_s32(acc, w1, q1);
+                sumf += d16(b) * y.d * vaddvq_s32(acc) as f32;
+            }
+            sumf
+        }
+    }
+    pub fn dot_q8_0(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe { dot_q8_0_impl(row, xq) }
+    }
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot_q4_impl<const T: u8>(row: &[u8], xq: &[Q8K]) -> f32 {
+        let (bb, oh, oq) = q4_layout(T);
+        unsafe {
+            let m4 = vdupq_n_u8(0x0F);
+            let mut sumf = 0.0f32;
+            for (i, b) in row.chunks_exact(bb).enumerate() {
+                let (y, o) = (&xq[i / 8], (i % 8) * 32);
+                let qs = vld1q_u8(b.as_ptr().add(oq));
+                let mut w_lo = vreinterpretq_s8_u8(vandq_u8(qs, m4));
+                let mut w_hi = vreinterpretq_s8_u8(vshrq_n_u8::<4>(qs));
+                if oh > 0 {
+                    let qh = u32::from_le_bytes(b[oh..oh + 4].try_into().unwrap());
+                    let mut hi0 = [0i8; 16];
+                    let mut hi1 = [0i8; 16];
+                    for j in 0..16 {
+                        hi0[j] = (((qh >> j) & 1) << 4) as i8;
+                        hi1[j] = (((qh >> (j + 16)) & 1) << 4) as i8;
+                    }
+                    w_lo = vaddq_s8(w_lo, vld1q_s8(hi0.as_ptr()));
+                    w_hi = vaddq_s8(w_hi, vld1q_s8(hi1.as_ptr()));
+                }
+                let q0 = vld1q_s8(y.qs.as_ptr().add(o));
+                let q1 = vld1q_s8(y.qs.as_ptr().add(o + 16));
+                let mut acc = vdotq_s32(vdupq_n_s32(0), w_lo, q0);
+                acc = vdotq_s32(acc, w_hi, q1);
+                let s = vaddvq_s32(acc);
+                sumf += y.d
+                    * (d16(b) * s as f32
+                        + q4_min(T, b) * (y.bs[o / 16] as i32 + y.bs[o / 16 + 1] as i32) as f32);
+            }
+            sumf
+        }
+    }
+    pub fn dot_q4<const T: u8>(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe { dot_q4_impl::<T>(row, xq) }
+    }
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot_q4k_impl(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe {
+            let m4 = vdupq_n_u8(0x0F);
+            let mut sumf = 0.0f32;
+            for (b, y) in row.chunks_exact(144).zip(xq) {
+                let sm: [(u8, u8); 8] =
+                    std::array::from_fn(|j| crate::quant::scale_min_k4(j, &b[4..16]));
+                let mut sumi = 0i32;
+                let mut m_sum = 0i32;
+                let bp = b.as_ptr();
+                let qp = y.qs.as_ptr();
+                for j in 0..4 {
+                    let b0 = vld1q_u8(bp.add(16 + 32 * j));
+                    let b1 = vld1q_u8(bp.add(32 + 32 * j));
+                    let w0_lo = vreinterpretq_s8_u8(vandq_u8(b0, m4));
+                    let w1_lo = vreinterpretq_s8_u8(vandq_u8(b1, m4));
+                    let w0_hi = vreinterpretq_s8_u8(vshrq_n_u8::<4>(b0));
+                    let w1_hi = vreinterpretq_s8_u8(vshrq_n_u8::<4>(b1));
+
+                    let q0_lo = vld1q_s8(qp.add(64 * j));
+                    let q1_lo = vld1q_s8(qp.add(64 * j + 16));
+                    let q0_hi = vld1q_s8(qp.add(64 * j + 32));
+                    let q1_hi = vld1q_s8(qp.add(64 * j + 48));
+
+                    let acc0 = vdotq_s32(vdotq_s32(vdupq_n_s32(0), w0_lo, q0_lo), w1_lo, q1_lo);
+                    let acc1 = vdotq_s32(vdotq_s32(vdupq_n_s32(0), w0_hi, q0_hi), w1_hi, q1_hi);
+                    sumi += vaddvq_s32(acc0) * sm[2 * j].0 as i32
+                        + vaddvq_s32(acc1) * sm[2 * j + 1].0 as i32;
+                    m_sum += sm[2 * j].1 as i32 * (y.bs[4 * j] + y.bs[4 * j + 1]) as i32
+                        + sm[2 * j + 1].1 as i32 * (y.bs[4 * j + 2] + y.bs[4 * j + 3]) as i32;
+                }
+                sumf += d16(b) * y.d * sumi as f32 - d16(&b[2..]) * y.d * m_sum as f32;
+            }
+            sumf
+        }
+    }
+    pub fn dot_q4k(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe { dot_q4k_impl(row, xq) }
+    }
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot_q5k_impl(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe {
+            let m4 = vdupq_n_u8(0x0F);
+            let m1 = vdupq_n_u8(0x01);
+            let m2 = vdupq_n_u8(0x02);
+            let mut sumf = 0.0f32;
+            for (b, y) in row.chunks_exact(176).zip(xq) {
+                let sm: [(u8, u8); 8] =
+                    std::array::from_fn(|j| crate::quant::scale_min_k4(j, &b[4..16]));
+                let mut sumi = 0i32;
+                let mut m_sum = 0i32;
+                let bp = b.as_ptr();
+                let qp = y.qs.as_ptr();
+                let mut h0 = vld1q_u8(bp.add(16));
+                let mut h1 = vld1q_u8(bp.add(32));
+                for j in 0..4 {
+                    let b0 = vld1q_u8(bp.add(48 + 32 * j));
+                    let b1 = vld1q_u8(bp.add(64 + 32 * j));
+
+                    let w0_lo = vreinterpretq_s8_u8(vorrq_u8(
+                        vandq_u8(b0, m4),
+                        vshlq_n_u8::<4>(vandq_u8(h0, m1)),
+                    ));
+                    let w1_lo = vreinterpretq_s8_u8(vorrq_u8(
+                        vandq_u8(b1, m4),
+                        vshlq_n_u8::<4>(vandq_u8(h1, m1)),
+                    ));
+                    let w0_hi = vreinterpretq_s8_u8(vorrq_u8(
+                        vshrq_n_u8::<4>(b0),
+                        vshlq_n_u8::<3>(vandq_u8(h0, m2)),
+                    ));
+                    let w1_hi = vreinterpretq_s8_u8(vorrq_u8(
+                        vshrq_n_u8::<4>(b1),
+                        vshlq_n_u8::<3>(vandq_u8(h1, m2)),
+                    ));
+                    h0 = vshrq_n_u8::<2>(h0);
+                    h1 = vshrq_n_u8::<2>(h1);
+
+                    let q0_lo = vld1q_s8(qp.add(64 * j));
+                    let q1_lo = vld1q_s8(qp.add(64 * j + 16));
+                    let q0_hi = vld1q_s8(qp.add(64 * j + 32));
+                    let q1_hi = vld1q_s8(qp.add(64 * j + 48));
+
+                    let acc0 = vdotq_s32(vdotq_s32(vdupq_n_s32(0), w0_lo, q0_lo), w1_lo, q1_lo);
+                    let acc1 = vdotq_s32(vdotq_s32(vdupq_n_s32(0), w0_hi, q0_hi), w1_hi, q1_hi);
+                    sumi += vaddvq_s32(acc0) * sm[2 * j].0 as i32
+                        + vaddvq_s32(acc1) * sm[2 * j + 1].0 as i32;
+                    m_sum += sm[2 * j].1 as i32 * (y.bs[4 * j] + y.bs[4 * j + 1]) as i32
+                        + sm[2 * j + 1].1 as i32 * (y.bs[4 * j + 2] + y.bs[4 * j + 3]) as i32;
+                }
+                sumf += d16(b) * y.d * sumi as f32 - d16(&b[2..]) * y.d * m_sum as f32;
+            }
+            sumf
+        }
+    }
+    pub fn dot_q5k(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe { dot_q5k_impl(row, xq) }
+    }
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot_q6k_impl(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe {
+            let m4 = vdupq_n_u8(0x0F);
+            let m2 = vdupq_n_u8(0x03);
+            let off32 = vdupq_n_s8(32);
+            let mut sumf = 0.0f32;
+            for (b, y) in row.chunks_exact(210).zip(xq) {
+                let mut sumi = 0i32;
+                for n in 0..2 {
+                    let ql = b.as_ptr().add(64 * n);
+                    let qh = b.as_ptr().add(128 + 32 * n);
+                    let sc = &b[192 + 8 * n..];
+                    let yp = y.qs.as_ptr().add(128 * n);
+                    for half in 0..2 {
+                        let off = 16 * half;
+                        let la = vld1q_u8(ql.add(off));
+                        let lb = vld1q_u8(ql.add(32 + off));
+                        let h = vld1q_u8(qh.add(off));
+                        let w1 = vsubq_s8(
+                            vreinterpretq_s8_u8(vorrq_u8(
+                                vandq_u8(la, m4),
+                                vshlq_n_u8::<4>(vandq_u8(h, m2)),
+                            )),
+                            off32,
+                        );
+                        let w2 = vsubq_s8(
+                            vreinterpretq_s8_u8(vorrq_u8(
+                                vandq_u8(lb, m4),
+                                vshlq_n_u8::<4>(vandq_u8(vshrq_n_u8::<2>(h), m2)),
+                            )),
+                            off32,
+                        );
+                        let w3 = vsubq_s8(
+                            vreinterpretq_s8_u8(vorrq_u8(
+                                vshrq_n_u8::<4>(la),
+                                vshlq_n_u8::<4>(vandq_u8(vshrq_n_u8::<4>(h), m2)),
+                            )),
+                            off32,
+                        );
+                        let w4 = vsubq_s8(
+                            vreinterpretq_s8_u8(vorrq_u8(
+                                vshrq_n_u8::<4>(lb),
+                                vshlq_n_u8::<4>(vshrq_n_u8::<6>(h)),
+                            )),
+                            off32,
+                        );
+                        let q1 = vld1q_s8(yp.add(off));
+                        let q2 = vld1q_s8(yp.add(32 + off));
+                        let q3 = vld1q_s8(yp.add(64 + off));
+                        let q4 = vld1q_s8(yp.add(96 + off));
+                        let d1 = vaddvq_s32(vdotq_s32(vdupq_n_s32(0), w1, q1));
+                        let d2 = vaddvq_s32(vdotq_s32(vdupq_n_s32(0), w2, q2));
+                        let d3 = vaddvq_s32(vdotq_s32(vdupq_n_s32(0), w3, q3));
+                        let d4 = vaddvq_s32(vdotq_s32(vdupq_n_s32(0), w4, q4));
+                        sumi += (sc[half] as i8 as i32) * d1
+                            + (sc[2 + half] as i8 as i32) * d2
+                            + (sc[4 + half] as i8 as i32) * d3
+                            + (sc[6 + half] as i8 as i32) * d4;
+                    }
+                }
+                sumf += d16(&b[208..]) * y.d * sumi as f32;
+            }
+            sumf
+        }
+    }
+    pub fn dot_q6k(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe { dot_q6k_impl(row, xq) }
+    }
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot_iq4nl_impl(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe {
+            let tbl = vld1q_s8(KVALUES_IQ4NL.as_ptr());
+            let m4 = vdupq_n_u8(0x0F);
+            let mut sumf = 0.0f32;
+            for (i, b) in row.chunks_exact(18).enumerate() {
+                let (y, o) = (&xq[i / 8], (i % 8) * 32);
+                let qs = vld1q_u8(b.as_ptr().add(2));
+                let w0 = vqtbl1q_s8(tbl, vandq_u8(qs, m4));
+                let w1 = vqtbl1q_s8(tbl, vshrq_n_u8::<4>(qs));
+                let q0 = vld1q_s8(y.qs.as_ptr().add(o));
+                let q1 = vld1q_s8(y.qs.as_ptr().add(o + 16));
+                let acc = vdotq_s32(vdotq_s32(vdupq_n_s32(0), w0, q0), w1, q1);
+                sumf += d16(b) * y.d * vaddvq_s32(acc) as f32;
+            }
+            sumf
+        }
+    }
+    pub fn dot_iq4nl(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe { dot_iq4nl_impl(row, xq) }
+    }
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot_iq4xs_impl(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe {
+            let tbl = vld1q_s8(KVALUES_IQ4NL.as_ptr());
+            let m4 = vdupq_n_u8(0x0F);
+            let mut sumf = 0.0f32;
+            for (b, y) in row.chunks_exact(136).zip(xq) {
+                let dd = d16(b) * y.d;
+                let sh = u16::from_le_bytes([b[2], b[3]]);
+                let (sl, qs) = (&b[4..8], &b[8..136]);
+                for ib in 0..8 {
+                    let ls = ((sl[ib / 2] >> (4 * (ib % 2))) & 0xF) as i32
+                        | ((((sh >> (2 * ib)) & 3) as i32) << 4);
+                    let raw = vld1q_u8(qs.as_ptr().add(16 * ib));
+                    let w0 = vqtbl1q_s8(tbl, vandq_u8(raw, m4));
+                    let w1 = vqtbl1q_s8(tbl, vshrq_n_u8::<4>(raw));
+                    let q0 = vld1q_s8(y.qs.as_ptr().add(32 * ib));
+                    let q1 = vld1q_s8(y.qs.as_ptr().add(32 * ib + 16));
+                    let acc = vdotq_s32(vdotq_s32(vdupq_n_s32(0), w0, q0), w1, q1);
+                    sumf += dd * (ls - 32) as f32 * vaddvq_s32(acc) as f32;
+                }
+            }
+            sumf
+        }
+    }
+    pub fn dot_iq4xs(row: &[u8], xq: &[Q8K]) -> f32 {
+        unsafe { dot_iq4xs_impl(row, xq) }
     }
 }
 
@@ -1488,6 +1839,33 @@ mod avx2 {
 pub fn int_dot(ty: GgmlType) -> Option<fn(&[u8], &[Q8K]) -> f32> {
     #[cfg(target_arch = "aarch64")]
     {
+        if std::arch::is_aarch64_feature_detected!("dotprod") {
+            return match ty {
+                GgmlType::Q4_0 => Some(neon_dotprod::dot_q4::<2>),
+                GgmlType::Q4_1 => Some(neon_dotprod::dot_q4::<3>),
+                GgmlType::Q5_0 => Some(neon_dotprod::dot_q4::<6>),
+                GgmlType::Q5_1 => Some(neon_dotprod::dot_q4::<7>),
+                GgmlType::Q8_0 => Some(neon_dotprod::dot_q8_0),
+                GgmlType::Q4K => Some(neon_dotprod::dot_q4k),
+                GgmlType::Q5K => Some(neon_dotprod::dot_q5k),
+                GgmlType::Q6K => Some(neon_dotprod::dot_q6k),
+                GgmlType::IQ4NL => Some(neon_dotprod::dot_iq4nl),
+                GgmlType::IQ4XS => Some(neon_dotprod::dot_iq4xs),
+                GgmlType::Q2K => Some(dot_q2k),
+                GgmlType::Q3K => Some(dot_q3k),
+                GgmlType::Q2_0 => Some(dot_q2_0),
+                GgmlType::TQ1_0 => Some(dot_tq1_0),
+                GgmlType::TQ2_0 => Some(dot_tq2_0),
+                GgmlType::IQ1S => Some(dot_iq1s),
+                GgmlType::IQ1M => Some(dot_iq1m),
+                GgmlType::IQ2XXS => Some(dot_iq2xxs),
+                GgmlType::IQ2XS => Some(dot_iq2xs),
+                GgmlType::IQ2S => Some(dot_iq2s),
+                GgmlType::IQ3XXS => Some(dot_iq3xxs),
+                GgmlType::IQ3S => Some(dot_iq3s),
+                _ => None,
+            };
+        }
         return match ty {
             GgmlType::Q4_0 => Some(neon::dot_q4::<2>),
             GgmlType::Q4_1 => Some(neon::dot_q4::<3>),
@@ -1591,6 +1969,19 @@ pub fn dot_f32_slice(a: &[f32], b: &[f32]) -> f32 {
 }
 
 #[inline(always)]
+pub fn fma_f32_slice(out: &mut [f32], v: &[f32], scale: f32) {
+    #[cfg(target_arch = "aarch64")]
+    {
+        neon::fma_f32(out, v, scale);
+        return;
+    }
+    #[allow(unreachable_code)]
+    for (o, &vv) in out.iter_mut().zip(v) {
+        *o += scale * vv;
+    }
+}
+
+#[inline(always)]
 fn dot_float_row(ty: GgmlType, row_bytes: &[u8], x: &[f32], buf: &mut [f32]) -> f32 {
     match ty {
         GgmlType::F32 => {
@@ -1626,34 +2017,40 @@ fn dot_float_row(ty: GgmlType, row_bytes: &[u8], x: &[f32], buf: &mut [f32]) -> 
     }
 }
 
-/// Fast quantized or float matrix-vector product `y = t · x`.
-pub fn matvec(t: &Tensor, x: &[f32], y: &mut [f32]) {
+/// Fast quantized or float matrix-vector product `y = t · x` using a pre-quantized `Q8K` input.
+pub fn matvec_with_q8k(t: &Tensor, xq: &[Q8K], x: &[f32], y: &mut [f32]) {
     assert_eq!((x.len(), y.len()), (t.cols, t.rows));
     if t.rows == 0 || t.cols == 0 {
         return;
     }
     let rb = t.row_bytes();
     if let Some(dot) = int_dot(t.ty) {
-        let xq = quantize_q8k(x);
         if t.rows * t.cols >= 16_384 && rayon::current_num_threads() > 1 {
-            let chunk = if t.rows >= 1024 { 32 } else { 16 };
+            let chunk = if t.rows >= 4096 {
+                64
+            } else if t.rows >= 1024 {
+                32
+            } else {
+                16
+            };
             y.par_chunks_mut(chunk).enumerate().for_each(|(c, ys)| {
                 let base = c * chunk;
                 for (k, v) in ys.iter_mut().enumerate() {
                     let r = base + k;
-                    *v = dot(&t.data[r * rb..(r + 1) * rb], &xq);
+                    *v = dot(&t.data[r * rb..(r + 1) * rb], xq);
                 }
             });
         } else {
             for (r, v) in y.iter_mut().enumerate() {
-                *v = dot(&t.data[r * rb..(r + 1) * rb], &xq);
+                *v = dot(&t.data[r * rb..(r + 1) * rb], xq);
             }
         }
     } else if t.rows * t.cols >= 16_384 && rayon::current_num_threads() > 1 {
-        y.par_chunks_mut(16).enumerate().for_each_init(
+        let chunk = if t.rows >= 4096 { 32 } else { 16 };
+        y.par_chunks_mut(chunk).enumerate().for_each_init(
             || vec![0f32; t.cols],
             |buf, (c, ys)| {
-                let base = c * 16;
+                let base = c * chunk;
                 for (k, v) in ys.iter_mut().enumerate() {
                     let r = base + k;
                     *v = dot_float_row(t.ty, &t.data[r * rb..(r + 1) * rb], x, buf);
@@ -1665,6 +2062,78 @@ pub fn matvec(t: &Tensor, x: &[f32], y: &mut [f32]) {
         for (r, v) in y.iter_mut().enumerate() {
             *v = dot_float_row(t.ty, &t.data[r * rb..(r + 1) * rb], x, &mut buf);
         }
+    }
+}
+
+/// Fused SwiGLU / GeGLU MLP first stage: computes `act[r] = act_fn(gate[r] · x) * (up[r] · x)`
+/// in a single parallel pass without intermediate vectors or duplicate `Q8K` quantization.
+#[allow(clippy::too_many_arguments)]
+pub fn fused_gate_up_act(
+    gate: &Tensor,
+    up: &Tensor,
+    xq: &[Q8K],
+    x: &[f32],
+    act: &mut [f32],
+    gate_scratch: &mut Vec<f32>,
+    up_scratch: &mut Vec<f32>,
+    is_gemma: bool,
+) {
+    let rows = up.rows;
+    if let (Some(dg), Some(du)) = (int_dot(gate.ty), int_dot(up.ty)) {
+        let rbg = gate.row_bytes();
+        let rbu = up.row_bytes();
+        let chunk = if rows >= 4096 { 64 } else if rows >= 1024 { 32 } else { 16 };
+        if rows * up.cols >= 16_384 && rayon::current_num_threads() > 1 {
+            act.par_chunks_mut(chunk).enumerate().for_each(|(c, out)| {
+                let base = c * chunk;
+                for (k, dst) in out.iter_mut().enumerate() {
+                    let r = base + k;
+                    let g = dg(&gate.data[r * rbg..(r + 1) * rbg], xq);
+                    let u = du(&up.data[r * rbu..(r + 1) * rbu], xq);
+                    *dst = if is_gemma {
+                        crate::ops::gelu_tanh(g) * u
+                    } else {
+                        crate::ops::silu(g) * u
+                    };
+                }
+            });
+        } else {
+            for (r, dst) in act.iter_mut().enumerate() {
+                let g = dg(&gate.data[r * rbg..(r + 1) * rbg], xq);
+                let u = du(&up.data[r * rbu..(r + 1) * rbu], xq);
+                *dst = if is_gemma {
+                    crate::ops::gelu_tanh(g) * u
+                } else {
+                    crate::ops::silu(g) * u
+                };
+            }
+        }
+    } else {
+        gate_scratch.resize(rows, 0.0);
+        up_scratch.resize(rows, 0.0);
+        matvec_with_q8k(gate, xq, x, gate_scratch);
+        matvec_with_q8k(up, xq, x, up_scratch);
+        for ((dst, &g), &u) in act.iter_mut().zip(gate_scratch.iter()).zip(up_scratch.iter()) {
+            *dst = if is_gemma {
+                crate::ops::gelu_tanh(g) * u
+            } else {
+                crate::ops::silu(g) * u
+            };
+        }
+    }
+}
+
+/// Fast quantized or float matrix-vector product `y = t · x`.
+pub fn matvec(t: &Tensor, x: &[f32], y: &mut [f32]) {
+    assert_eq!((x.len(), y.len()), (t.cols, t.rows));
+    if t.rows == 0 || t.cols == 0 {
+        return;
+    }
+    if int_dot(t.ty).is_some() {
+        let xq = quantize_q8k(x);
+        matvec_with_q8k(t, &xq, x, y);
+    } else {
+        matvec_with_q8k(t, &[], x, y);
     }
 }
 
@@ -1888,5 +2357,51 @@ mod tests {
         let ym = rows_multi(&t, &[&x0, &x1]);
         assert_eq!(ym[0], y0);
         assert_eq!(ym[1], y1);
+    }
+
+    #[test]
+    fn fused_gate_up_and_fma_match_reference() {
+        let cols = 256usize;
+        let rows = 32usize;
+        let mut raw_g = vec![0u8; rows * 34 * (cols / 32)];
+        let mut raw_u = vec![0u8; rows * 34 * (cols / 32)];
+        for (i, b) in raw_g.chunks_exact_mut(34).enumerate() {
+            b[0..2].copy_from_slice(&f16::from_f32(0.05).to_le_bytes());
+            for j in 0..32 {
+                b[2 + j] = (((i * 7 + j * 3) % 21) as i8 - 10) as u8;
+            }
+        }
+        for (i, b) in raw_u.chunks_exact_mut(34).enumerate() {
+            b[0..2].copy_from_slice(&f16::from_f32(0.04).to_le_bytes());
+            for j in 0..32 {
+                b[2 + j] = (((i * 5 + j * 11) % 19) as i8 - 9) as u8;
+            }
+        }
+        let tg = Tensor { ty: GgmlType::Q8_0, cols, rows, data: &raw_g };
+        let tu = Tensor { ty: GgmlType::Q8_0, cols, rows, data: &raw_u };
+        let x: Vec<f32> = (0..cols).map(|i| ((i as f32) * 0.07).sin()).collect();
+
+        let mut g_ref = vec![0f32; rows];
+        let mut u_ref = vec![0f32; rows];
+        matvec(&tg, &x, &mut g_ref);
+        matvec(&tu, &x, &mut u_ref);
+
+        let mut xq = Vec::new();
+        quantize_q8k_into(&x, &mut xq);
+        let mut act = vec![0f32; rows];
+        let (mut sg, mut su) = (Vec::new(), Vec::new());
+        fused_gate_up_act(&tg, &tu, &xq, &x, &mut act, &mut sg, &mut su, false);
+
+        for r in 0..rows {
+            let want = crate::ops::silu(g_ref[r]) * u_ref[r];
+            assert!((act[r] - want).abs() < 1e-5, "row {r}: {} vs {want}", act[r]);
+        }
+
+        let mut acc = vec![1.0f32; 37];
+        let v: Vec<f32> = (0..37).map(|i| i as f32 * 0.25).collect();
+        fma_f32_slice(&mut acc, &v, 0.5);
+        for (i, &val) in acc.iter().enumerate() {
+            assert!((val - (1.0 + 0.5 * v[i])).abs() < 1e-6);
+        }
     }
 }

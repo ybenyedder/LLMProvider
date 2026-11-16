@@ -21,6 +21,6 @@ fancy-regex = "0.13"
 opt-level = 3
 debug = 0
 codegen-units = 1
-lto = "thin"
+lto = "fat"
 panic = "abort"
 strip = true

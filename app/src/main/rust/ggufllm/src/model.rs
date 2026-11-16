@@ -15,11 +15,29 @@ pub enum LayerState {
     Attn { k: Vec<f32>, v: Vec<f32> },
 }
 
+#[derive(Default)]
+pub(crate) struct DecodeScratch {
+    h: Vec<f32>,
+    xq: Vec<simd::Q8K>,
+    q: Vec<f32>,
+    q_normed: Vec<f32>,
+    k: Vec<f32>,
+    v: Vec<f32>,
+    qkv: Vec<f32>,
+    attn_out: Vec<f32>,
+    proj: Vec<f32>,
+    ffn_act: Vec<f32>,
+    ffn_gate: Vec<f32>,
+    ffn_up: Vec<f32>,
+    sc: Vec<f32>,
+}
+
 pub struct State {
     pub layers: Vec<LayerState>,
     pub pos: usize,
     pub rope_pos: [i32; 4],
     pub cached_tokens: Vec<u32>,
+    pub(crate) scratch: DecodeScratch,
 }
 
 impl State {
@@ -44,6 +62,7 @@ impl State {
             pos: 0,
             rope_pos: [0; 4],
             cached_tokens: Vec::new(),
+            scratch: DecodeScratch::default(),
         }
     }
 
@@ -312,6 +331,9 @@ impl<'a> Model<'a> {
         if nt == 0 {
             return (Vec::new(), Vec::new());
         }
+        if nt == 1 && !self.has_delta && !self.cfg.uses_layer_norm {
+            return self.step_one_fast(st, xs_in.into_iter().next().unwrap(), compute_logits);
+        }
         let mut xs = xs_in;
         self.pool.install(|| {
             let pos0 = st.pos;
@@ -345,6 +367,236 @@ impl<'a> Model<'a> {
                 Vec::new()
             };
             (logits, normed_hids)
+        })
+    }
+
+    /// Zero-allocation single-token decode fast path (`nt == 1`, non-Delta, Pre-RMSNorm).
+    fn step_one_fast(
+        &self,
+        st: &mut State,
+        mut x: Vec<f32>,
+        compute_logits: bool,
+    ) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
+        let c = &self.cfg;
+        let (hd, nh, nkv) = (c.head_dim, c.n_head, c.n_head_kv);
+        let qs_stride = if c.q_gate { 2 * hd } else { hd };
+        let q_dim = nh * qs_stride;
+        let kv_dim = nkv * hd;
+        let pos = st.pos;
+        let rope_pos = [pos as i32; 4];
+        let scale = 1.0 / (hd as f32).sqrt();
+        let g_div = nh / nkv.max(1);
+        let is_gemma = matches!(c.arch.as_str(), "gemma" | "gemma2" | "gemma4");
+
+        let s = &mut st.scratch;
+        if s.h.len() != c.n_embd {
+            s.h.resize(c.n_embd, 0.0);
+        }
+        if s.q.len() != q_dim {
+            s.q.resize(q_dim, 0.0);
+        }
+        if s.q_normed.len() != nh * hd {
+            s.q_normed.resize(nh * hd, 0.0);
+        }
+        if s.k.len() != kv_dim {
+            s.k.resize(kv_dim, 0.0);
+        }
+        if s.v.len() != kv_dim {
+            s.v.resize(kv_dim, 0.0);
+        }
+        if s.attn_out.len() != nh * hd {
+            s.attn_out.resize(nh * hd, 0.0);
+        }
+        if s.proj.len() != c.n_embd {
+            s.proj.resize(c.n_embd, 0.0);
+        }
+
+        self.pool.install(|| {
+            for il in 0..c.n_layer {
+                let lc = &self.layer_cache[il];
+                let use_rope = c.rope_layer.get(il).copied().unwrap_or(true);
+                let swa_active = c.swa.get(il).copied().unwrap_or(false);
+
+                ops::rms_norm(&x, &lc.attn_norm, c.eps, &mut s.h);
+                simd::quantize_q8k_into(&s.h, &mut s.xq);
+
+                if let Ok(qkv_w) = self.w.layer(il, "attn_qkv.weight") {
+                    if s.qkv.len() != qkv_w.rows {
+                        s.qkv.resize(qkv_w.rows, 0.0);
+                    }
+                    simd::matvec_with_q8k(&qkv_w, &s.xq, &s.h, &mut s.qkv);
+                    if let Some(bias) = &lc.qkv_bias {
+                        for (a, &b) in s.qkv.iter_mut().zip(bias) {
+                            *a += b;
+                        }
+                    }
+                    s.q.copy_from_slice(&s.qkv[..q_dim]);
+                    s.k.copy_from_slice(&s.qkv[q_dim..q_dim + kv_dim]);
+                    s.v.copy_from_slice(&s.qkv[q_dim + kv_dim..q_dim + 2 * kv_dim]);
+                } else {
+                    simd::matvec_with_q8k(&self.t(il, "attn_q.weight"), &s.xq, &s.h, &mut s.q);
+                    simd::matvec_with_q8k(&self.t(il, "attn_k.weight"), &s.xq, &s.h, &mut s.k);
+                    simd::matvec_with_q8k(&self.t(il, "attn_v.weight"), &s.xq, &s.h, &mut s.v);
+                    if let Some(b) = &lc.q_bias {
+                        for (a, &bb) in s.q.iter_mut().zip(b) {
+                            *a += bb;
+                        }
+                    }
+                    if let Some(b) = &lc.k_bias {
+                        for (a, &bb) in s.k.iter_mut().zip(b) {
+                            *a += bb;
+                        }
+                    }
+                    if let Some(b) = &lc.v_bias {
+                        for (a, &bb) in s.v.iter_mut().zip(b) {
+                            *a += bb;
+                        }
+                    }
+                }
+
+                for i in 0..nh {
+                    let q_src = &s.q[i * qs_stride..i * qs_stride + hd];
+                    let qh = &mut s.q_normed[i * hd..(i + 1) * hd];
+                    if let Some(qn) = &lc.q_norm {
+                        ops::rms_norm(q_src, qn, c.eps, qh);
+                    } else {
+                        qh.copy_from_slice(q_src);
+                    }
+                    if use_rope {
+                        self.rope_head(qh, pos, rope_pos);
+                    }
+                }
+
+                let LayerState::Attn { k: kc, v: vc } = &mut st.layers[il] else {
+                    unreachable!()
+                };
+                let kc_base = kc.len();
+                kc.resize(kc_base + kv_dim, 0.0);
+                for i in 0..nkv {
+                    let kh = &mut kc[kc_base + i * hd..kc_base + (i + 1) * hd];
+                    if let Some(kn) = &lc.k_norm {
+                        ops::rms_norm(&s.k[i * hd..(i + 1) * hd], kn, c.eps, kh);
+                    } else {
+                        kh.copy_from_slice(&s.k[i * hd..(i + 1) * hd]);
+                    }
+                    if use_rope {
+                        self.rope_head(kh, pos, rope_pos);
+                    }
+                }
+                vc.extend_from_slice(&s.v);
+
+                let start_t = if !c.is_causal {
+                    0
+                } else if swa_active && c.n_swa > 0 {
+                    (pos + 1).saturating_sub(c.n_swa)
+                } else {
+                    0
+                };
+                let end_t = pos + 1;
+                let span = end_t - start_t;
+                s.sc.resize(span, 0.0);
+                let sinks = lc.attn_sinks.as_deref();
+
+                for i in 0..nh {
+                    let g = i / g_div;
+                    let qh = &s.q_normed[i * hd..(i + 1) * hd];
+                    for (si, kv_pos) in (start_t..end_t).enumerate() {
+                        let kt = &kc[(kv_pos * nkv + g) * hd..(kv_pos * nkv + g + 1) * hd];
+                        s.sc[si] = simd::dot_f32_slice(qh, kt) * scale;
+                    }
+                    ops::softmax_sink(&mut s.sc[..span], sinks.and_then(|sk| sk.get(i).copied()));
+                    let oh = &mut s.attn_out[i * hd..(i + 1) * hd];
+                    oh.fill(0.0);
+                    for (si, kv_pos) in (start_t..end_t).enumerate() {
+                        let p = s.sc[si];
+                        let vt = &vc[(kv_pos * nkv + g) * hd..(kv_pos * nkv + g + 1) * hd];
+                        simd::fma_f32_slice(oh, vt, p);
+                    }
+                    if c.q_gate {
+                        let gate = &s.q[i * qs_stride + hd..(i + 1) * qs_stride];
+                        for (o, &gg) in oh.iter_mut().zip(gate) {
+                            *o *= ops::sigmoid(gg);
+                        }
+                    }
+                }
+
+                simd::quantize_q8k_into(&s.attn_out, &mut s.xq);
+                simd::matvec_with_q8k(
+                    &self.t(il, "attn_output.weight"),
+                    &s.xq,
+                    &s.attn_out,
+                    &mut s.proj,
+                );
+                if let Some(b) = &lc.o_bias {
+                    for (a, &bb) in s.proj.iter_mut().zip(b) {
+                        *a += bb;
+                    }
+                }
+                for (a, &p) in x.iter_mut().zip(s.proj.iter()) {
+                    *a += p;
+                }
+
+                ops::rms_norm(&x, &lc.post_attn_norm, c.eps, &mut s.h);
+                if c.is_moe_layer(il) {
+                    let ffns = self.moe_batch(il, &[&s.h]);
+                    for (a, &f) in x.iter_mut().zip(ffns[0].iter()) {
+                        *a += f;
+                    }
+                } else {
+                    simd::quantize_q8k_into(&s.h, &mut s.xq);
+                    let up_t = self.t(il, "ffn_up.weight");
+                    if s.ffn_act.len() != up_t.rows {
+                        s.ffn_act.resize(up_t.rows, 0.0);
+                    }
+                    if let Ok(gate_t) = self.w.layer(il, "ffn_gate.weight") {
+                        simd::fused_gate_up_act(
+                            &gate_t,
+                            &up_t,
+                            &s.xq,
+                            &s.h,
+                            &mut s.ffn_act,
+                            &mut s.ffn_gate,
+                            &mut s.ffn_up,
+                            is_gemma,
+                        );
+                    } else {
+                        simd::matvec_with_q8k(&up_t, &s.xq, &s.h, &mut s.ffn_act);
+                        for v in &mut s.ffn_act {
+                            *v = ops::gelu_tanh(*v);
+                        }
+                    }
+                    simd::quantize_q8k_into(&s.ffn_act, &mut s.xq);
+                    simd::matvec_with_q8k(
+                        &self.t(il, "ffn_down.weight"),
+                        &s.xq,
+                        &s.ffn_act,
+                        &mut s.proj,
+                    );
+                    for (a, &p) in x.iter_mut().zip(s.proj.iter()) {
+                        *a += p;
+                    }
+                }
+            }
+
+            st.pos += 1;
+            st.rope_pos = [(pos + 1) as i32; 4];
+
+            ops::rms_norm(&x, &self.output_norm, c.eps, &mut s.h);
+            let logits = if !compute_logits {
+                Vec::new()
+            } else if let Ok(head) = self
+                .w
+                .get("output.weight")
+                .or_else(|_| self.w.get("token_embd.weight"))
+            {
+                simd::quantize_q8k_into(&s.h, &mut s.xq);
+                let mut lg = vec![0f32; head.rows];
+                simd::matvec_with_q8k(&head, &s.xq, &s.h, &mut lg);
+                vec![lg]
+            } else {
+                Vec::new()
+            };
+            (logits, vec![s.h.clone()])
         })
     }
 
@@ -554,9 +806,7 @@ impl<'a> Model<'a> {
                 for (si, kv_pos) in (start_t..end_t).enumerate() {
                     let p = sc[si];
                     let vt = &vc[(kv_pos * nkv + g) * hd..(kv_pos * nkv + g + 1) * hd];
-                    for (o, &vv) in oh.iter_mut().zip(vt) {
-                        *o += p * vv;
-                    }
+                    simd::fma_f32_slice(oh, vt, p);
                 }
                 if c.q_gate {
                     let gate = &qg_t[i * qs_stride + hd..(i + 1) * qs_stride];
