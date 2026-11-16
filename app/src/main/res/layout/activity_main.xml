@@ -3,65 +3,146 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground">
+    android:background="@color/colorBackground">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        
+        android:layout_height="wrap_content"
+        android:background="@color/colorSurface">
+
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="@color/colorSurface"
             app:title="Tree4Five LLM Provider"
-            style="@style/Widget.MaterialComponents.Toolbar.Primary" />
+            app:subtitle="RustingStrata v2.0 Pure-Rust Engine"
+            app:titleTextColor="@color/colorOnBackground"
+            app:subtitleTextColor="@color/colorPrimary" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        android:padding="16dp">
+        android:fillViewport="true"
+        android:padding="14dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Card: Model Setup -->
+            <!-- CARD 0: Live Telemetry Dashboard -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/colorSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/colorStroke"
+                app:strokeWidth="1dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="14dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="RUST ENGINE TELEMETRY"
+                            android:textColor="@color/colorSecondary"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.08" />
+
+                        <TextView
+                            android:id="@+id/tvEngineBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@color/colorSurfaceElevated"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="4dp"
+                            android:text="Idle · Not Bound"
+                            android:textColor="@color/colorMuted"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvTelemetrySummary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:fontFamily="monospace"
+                        android:lineSpacingExtra="3dp"
+                        android:text="Model: none\nBackend: libggufllm.so (RustingStrata v2.0)\nSpeed: -- prefill | -- decode"
+                        android:textColor="@color/colorOnSurface"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvStorageInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Storage: checking..."
+                        android:textColor="@color/colorMuted"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- CARD 1: Model Manager & Downloads -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/colorSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/colorStroke"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="1. Setup Model"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="12dp"/>
+                        android:layout_marginBottom="10dp"
+                        android:text="1. Model Manager (GGUF)"
+                        android:textColor="@color/colorOnBackground"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
 
                     <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="GGUF URL (http/https) or file URI"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                        android:hint="GGUF URL (http/https) or local URI"
+                        app:boxStrokeColor="@color/colorPrimary"
+                        app:hintTextColor="@color/colorMuted">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etModelUrl"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:inputType="textUri"
                             android:text="https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
-                            android:inputType="textUri"/>
+                            android:textColor="@color/colorOnSurface"
+                            android:textSize="13sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <HorizontalScrollView
@@ -76,46 +157,78 @@
                             android:orientation="horizontal">
 
                             <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPresetQwen306b"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Qwen3-0.6B · Fast"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorPrimary" />
+
+                            <com.google.android.material.chip.Chip
                                 android:id="@+id/chipPreset05b"
                                 style="@style/Widget.MaterialComponents.Chip.Action"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0.5B · 470 MB · embeddings ✓"
-                                android:checkable="false"/>
+                                android:layout_marginStart="6dp"
+                                android:text="Qwen2.5-0.5B · 470 MB"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chipPreset15b"
                                 style="@style/Widget.MaterialComponents.Chip.Action"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="1.5B · 1.0 GB · embeddings ✓"
-                                android:checkable="false"/>
+                                android:layout_marginStart="6dp"
+                                android:text="Qwen2.5-1.5B · 1.0 GB"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPresetQwen317b"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="Qwen3-1.7B · Smart"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPresetSmol"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="SmolLM2-360M · Ultra-Lite"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
 
                             <com.google.android.material.chip.Chip
                                 android:id="@+id/chipPresetNomic"
                                 style="@style/Widget.MaterialComponents.Chip.Action"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="8dp"
-                                android:text="nomic-embed · 140 MB · embedder add-on"
-                                android:checkable="false"/>
+                                android:layout_marginStart="6dp"
+                                android:text="nomic-embed · 140 MB"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorSecondary" />
                         </LinearLayout>
                     </HorizontalScrollView>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginTop="12dp"
-                        android:weightSum="2">
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnDownload"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
                             android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
                             android:text="Fetch URL"
                             app:icon="@android:drawable/ic_menu_save" />
 
@@ -124,9 +237,11 @@
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
                             android:layout_weight="1"
-                            android:layout_marginStart="8dp"
-                            android:text="Select File"
+                            android:text="Pick File"
+                            android:textColor="@color/colorSecondary"
+                            app:strokeColor="@color/colorSecondary"
                             app:icon="@android:drawable/ic_menu_gallery" />
                     </LinearLayout>
 
@@ -134,164 +249,478 @@
                         android:id="@+id/progressBar"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="12dp"
+                        android:max="100"
                         android:visibility="gone"
-                        android:max="100"/>
-                        
-                    <TextView
-                        android:id="@+id/tvProgress"
+                        app:indicatorColor="@color/colorPrimary"
+                        app:trackColor="@color/colorSurfaceElevated" />
+
+                    <LinearLayout
+                        android:id="@+id/layoutDownloadMeta"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="0%"
-                        android:textAlignment="center"
-                        android:layout_marginTop="4dp"
-                        android:visibility="gone" />
+                        android:layout_marginTop="6dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
 
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                        <TextView
+                            android:id="@+id/tvProgress"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="monospace"
+                            android:text="0%"
+                            android:textColor="@color/colorOnSurface"
+                            android:textSize="11sp" />
 
-            <!-- Card: Service Control -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
-                android:layout_marginBottom="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="2. Select &amp; Start Service"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="12dp"/>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCancelDownload"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Cancel"
+                            android:textColor="@color/colorDanger" />
+                    </LinearLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:hint="Available Models">
-                        
+                        android:layout_marginTop="12dp"
+                        android:hint="Installed Models">
+
                         <AutoCompleteTextView
                             android:id="@+id/spinnerModels"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="none"/>
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:hint="API Protocol">
-                        
-                        <AutoCompleteTextView
-                            android:id="@+id/spinnerProtocol"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Ollama"
-                            android:inputType="none"/>
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnStartService"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Start Service"
-                        app:icon="@android:drawable/ic_media_play" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Card: Testing -->
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp"
-                android:layout_marginBottom="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="3. Test Inference (AIDL)"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="12dp"/>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="Prompt"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etPrompt"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textMultiLine"
-                            android:lines="3"
-                            android:gravity="top" />
+                            android:inputType="none"
+                            android:textColor="@color/colorOnSurface" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnReloadModel"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:text="Reload Model"
+                            android:textColor="@color/colorPrimary"
+                            app:strokeColor="@color/colorPrimary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnDeleteModel"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:text="Delete Model"
+                            android:textColor="@color/colorDanger"
+                            app:strokeColor="@color/colorDanger" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- CARD 2: Engine Controls, Acceleration & Local HTTP Server -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                app:cardBackgroundColor="@color/colorSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/colorStroke"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:text="2. Rust Engine &amp; Service Controls"
+                        android:textColor="@color/colorOnBackground"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:hint="Prompt Protocol">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/spinnerProtocol"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none"
+                            android:text="ChatML"
+                            android:textColor="@color/colorOnSurface" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
+                        android:hint="System Prompt (optional)">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etSystemPrompt"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textMultiLine"
+                            android:maxLines="3"
+                            android:textColor="@color/colorOnSurface"
+                            android:textSize="13sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchSpecDecoding"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="N-gram Speculative Decoding (greedy speedup)"
+                        android:textColor="@color/colorOnSurface" />
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchPrefixCache"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="Prefix KV-Cache Reuse (instant multi-turn)"
+                        android:textColor="@color/colorOnSurface" />
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchHttpServer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        android:text="Local OpenAI/Ollama HTTP API (127.0.0.1:11435)"
+                        android:textColor="@color/colorSecondary" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:hint="Temp">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etTemp"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="numberDecimal"
+                                android:text="0.0"
+                                android:textColor="@color/colorOnSurface" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:hint="Max Tok">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etMaxTokens"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:text="512"
+                                android:textColor="@color/colorOnSurface" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:hint="Ctx">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etContext"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:text="2048"
+                                android:textColor="@color/colorOnSurface" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="Threads">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etThreads"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number"
+                                android:text="4"
+                                android:textColor="@color/colorOnSurface" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:weightSum="2">
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnStartService"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="2"
+                            android:text="Start / Apply"
+                            app:icon="@android:drawable/ic_media_play" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClearKv"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:text="Clear KV"
+                            android:textColor="@color/colorWarning"
+                            app:strokeColor="@color/colorWarning" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnStopService"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Stop Svc"
+                            android:textColor="@color/colorDanger"
+                            app:strokeColor="@color/colorDanger" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- CARD 3: Interactive Playground & Benchmark -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="@color/colorSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/colorStroke"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="14dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="3. Playground &amp; Benchmark (AIDL)"
+                        android:textColor="@color/colorOnBackground"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPromptPoem"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Poem"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPromptMath"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="Math"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPromptPython"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="Python"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPromptJson"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="JSON Tool"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorOnSurface" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPromptEmbed"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="Test Embed"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorSecondary" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/chipPromptBench"
+                                style="@style/Widget.MaterialComponents.Chip.Action"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:text="Speed Bench"
+                                app:chipBackgroundColor="@color/colorSurfaceElevated"
+                                android:textColor="@color/colorPrimary" />
+                        </LinearLayout>
+                    </HorizontalScrollView>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Prompt">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etPrompt"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="top"
+                            android:inputType="textMultiLine"
+                            android:lines="3"
+                            android:textColor="@color/colorOnSurface" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnTest"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
                             android:layout_weight="1"
-                            android:layout_marginEnd="8dp"
                             android:text="Generate"
-                            app:icon="@android:drawable/ic_menu_edit" />
+                            app:icon="@android:drawable/ic_menu_send" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnStop"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
                             android:layout_weight="1"
-                            android:layout_marginStart="8dp"
                             android:text="Stop"
+                            android:textColor="@color/colorDanger"
+                            app:strokeColor="@color/colorDanger"
                             app:icon="@android:drawable/ic_menu_close_clear_cancel" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/tvStreamStats"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="monospace"
+                            android:text="TTFT: -- | Speed: -- | Tokens: 0"
+                            android:textColor="@color/colorSecondary"
+                            android:textSize="11sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCopyOutput"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Copy"
+                            android:textColor="@color/colorPrimary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClearOutput"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Clear"
+                            android:textColor="@color/colorMuted" />
                     </LinearLayout>
 
                     <com.google.android.material.card.MaterialCardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        app:cardBackgroundColor="?attr/colorSurface"
-                        app:cardCornerRadius="8dp"
+                        android:layout_marginTop="4dp"
+                        app:cardBackgroundColor="@color/colorBackground"
+                        app:cardCornerRadius="10dp"
                         app:cardElevation="0dp"
-                        app:strokeWidth="1dp"
-                        app:strokeColor="?attr/colorSecondary">
-                        
+                        app:strokeColor="@color/colorStroke"
+                        app:strokeWidth="1dp">
+
                         <TextView
                             android:id="@+id/tvOutput"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:minHeight="90dp"
                             android:padding="12dp"
                             android:text="Output will appear here..."
-                            android:textAppearance="?attr/textAppearanceBodyMedium"
-                            android:textColor="?attr/colorOnSurface"/>
+                            android:textColor="@color/colorOnSurface"
+                            android:textIsSelectable="true"
+                            android:textSize="14sp" />
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

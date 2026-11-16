@@ -1,203 +1,48 @@
-# Tree4Five LLM Provider 🌲5️⃣
+# Tree4Five LLM Provider 🌲5️⃣ — RustingStrata v2.0 Edition
 
-**Tree4Five LLM Provider** is a local LLM server designed specifically for Android. It acts as an on-device AI backend for *other* Android applications that want to run Large Language Models (LLMs) locally without relying on cloud APIs. By exposing a unified AIDL service, it allows any client application on your device to seamlessly generate text and access powerful AI capabilities completely offline and with absolute privacy.
+**Tree4Five LLM Provider** is a high-performance, 100% offline local LLM inference server for Android, powered by a **pure-Rust inference engine derived from [RustingStrata](https://github.com/ybenyedder/RustingStrata)** (`libggufllm.so`). It exposes a backward-compatible cross-app AIDL service (`ILLMService`) **and** an optional embedded OpenAI/Ollama HTTP API server (`127.0.0.1:11435`).
 
-## Features
-- **Local On-Device AI:** Runs GGUF models directly on your Android device using `java-llama.cpp`. No cloud, complete privacy.
-- **AIDL Service Architecture:** Exposes a persistent Foreground Service, allowing any other app on the device to bind to it and generate text seamlessly.
-- **Dynamic Model Loading:** Fetch models directly via URL (HTTP/HTTPS) or load local `.gguf` files using the Android Storage Access Framework.
-- **Material 3 Design:** A beautiful, responsive interface utilizing the custom tree4five color palette.
-- **Android 14 Ready:** Fully compliant with Android 14 Foreground Service (FGS) requirements (`FOREGROUND_SERVICE_SPECIAL_USE`).
-
-## How to Use
-1. **Download the App:** Build the project or grab the latest APK.
-2. **Setup a Model:** Launch the app, enter a HuggingFace GGUF URL (e.g., Qwen) or select a local model file, and tap "Fetch URL" or "Select File".
-3. **Start the Service:** Tap "Start Service" to initialize the inference engine in the background.
-4. **Test Inference:** Enter a prompt in the test box and watch the model stream the response in real-time!
+## 🚀 What's New in v2.0.0 (Pure-Rust Engine)
+- **Bye-bye `llama.cpp` — Hello Pure Rust (`RustingStrata`):** Complete replacement of the C++/CMake engine with a zero-C-dependency Rust engine (`app/src/main/rust/ggufllm`) compiled natively for `arm64-v8a` and `x86_64`.
+- **SIMD Quantized Kernels (`Q8_K`):** Hand-tuned ARM64 NEON (`ARMv8.0-A` safe) and x86_64 AVX2+FMA integer dot products across 25 GGML formats (`Q4_0`, `Q4_K`, `Q6_K`, `Q8_0`, `IQ4_NL`, `IQ4_XS`, `IQ2_*`, `IQ3_*`, `TQ1_0`, `TQ2_0`, `F16`, `BF16`, `F32`, etc.).
+- **Batched Prompt Prefill:** Multi-token batched matrix projection (`rows_multi`) reads weights once per chunk instead of per token.
+- **Prefix KV-Cache Reuse:** Automatically reuses shared KV prefixes across turns so multi-turn prompts and system prompts resume instantly.
+- **N-gram Speculative Decoding:** Zero-memory `ngram-simple` + `ngram-cache` drafter proposes up to 4 candidate tokens verified in a single batched pass during greedy decoding.
+- **Broad GGUF Architecture Support:** `qwen2`, `qwen2moe`, `qwen3`, `qwen3moe`, `qwen35`, `qwen35moe`, `qwen3next`, `qwen4exp`, `flint`, `llama`, `mistral`, `smollm`, `gemma`, `gemma2`, `gemma4`, `phi3`, and `nomic-bert`.
+- **Embedded Local HTTP API (`127.0.0.1:11435`):** Optional one-tap toggle exposing `/v1/chat/completions` (SSE streaming), `/v1/embeddings`, `/v1/models`, `/api/generate`, `/api/chat`, `/api/tags`, and `/health`.
+- **Redesigned Dark Telemetry UI:** Live Rust engine metrics (`arch`, `quant`, `SIMD`, `prefill tok/s`, `decode tok/s`, `N-gram hits`, `KV usage`), 6 model presets (`Qwen3-0.6B`, `Qwen2.5-0.5B`, `Qwen2.5-1.5B`, `Qwen3-1.7B`, `SmolLM2-360M`, `nomic-embed`), cancellable atomic `.part` downloads with `GGUF` magic validation, speed/ETA readout, model deletion/reloading, and interactive benchmark playground.
 
 ## Build Instructions
-This project uses Gradle. To build the debug APK:
+
+Prerequisites: JDK 17, Android SDK + NDK 27+, Rust (`aarch64-linux-android` & `x86_64-linux-android` targets).
+
 ```bash
-./gradlew assembleDebug
-```
-To run the automated tests:
-```bash
-./gradlew testDebugUnitTest
-./gradlew connectedAndroidTest
+# Run Rust engine unit & parity tests
+cd app/src/main/rust/ggufllm && cargo test --release
+
+# Run JVM + JNI integration tests and build APK / AAB
+cd /path/to/LLMProvider
+./gradlew testDebugUnitTest assembleDebug assembleRelease bundleRelease
 ```
 
-## Integrating into your app (Client Implementation)
-Since this runs as an AIDL service, any Android app can bind to it. Here is how you can use it in your own client application (e.g., your GitHub projects).
+Gradle automatically invokes `scripts/build-rust-android.sh` during `preBuild` to compile `libggufllm.so` with 16 KiB ELF alignment (`-Wl,-z,max-page-size=16384`).
 
-**Quick Example:**
-Here is a simple example of how to bind the service, send a prompt, and print the real-time response:
+## AIDL Integration (Backward Compatible v1.0 → v2.0)
+
+Bind to `com.tree4five.gguf.ACTION_LLM_SERVICE` in package `com.tree4five.gguf`:
 
 ```kotlin
-// 1. Bind to the service
-val intent = Intent("com.tree4five.gguf.ACTION_LLM_SERVICE")
-intent.setPackage("com.tree4five.gguf")
+val intent = Intent("com.tree4five.gguf.ACTION_LLM_SERVICE").apply {
+    setPackage("com.tree4five.gguf")
+}
 bindService(intent, connection, Context.BIND_AUTO_CREATE)
 
-// 2. Send a prompt & print the response
-llmService.generateTextStream("Explain Quantum Physics", object : ILLMCallback.Stub() {
-    override fun onTokenReceived(token: String) {
-        print(token) // Streams words in real-time!
-    }
-    
-    override fun onGenerationComplete(fullText: String) {
-        println("\nDone!")
-    }
-})
-```
-*Visit our GitHub repository for the full AIDL interfaces and detailed setup guides!*
+// Standard v1.x call (still 100% compatible)
+llmService.generateTextStream("Explain Quantum Physics", callback)
 
-### 1. Add the AIDL files to your client app
-In your client app, create the exact same AIDL interfaces under `app/src/main/aidl/com/tree4five/gguf/`:
-
-**ILLMCallback.aidl**
-```aidl
-package com.tree4five.gguf;
-interface ILLMCallback {
-    oneway void onTokenReceived(String token);
-    oneway void onGenerationComplete(String fullText);
-}
-```
-
-**ILLMService.aidl**
-```aidl
-package com.tree4five.gguf;
-import com.tree4five.gguf.ILLMCallback;
-interface ILLMService {
-    oneway void generateTextStream(String prompt, ILLMCallback callback);
-    oneway void stopGeneration();
-    String getVersion();
-}
-```
-
-### 2. Bind to the Service (Kotlin Coroutines Example)
-Here is an example service wrapper you can use in your client app to call the LLM easily using Kotlin Coroutines:
-
-```kotlin
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
-import com.tree4five.gguf.ILLMCallback
-import com.tree4five.gguf.ILLMService
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-
-class LLMClient(private val context: Context) {
-    private var llmService: ILLMService? = null
-    private var isBound = false
-
-    private suspend fun getService(): ILLMService = suspendCancellableCoroutine { continuation ->
-        if (llmService != null) {
-            continuation.resume(llmService!!)
-            return@suspendCancellableCoroutine
-        }
-
-        val connection = object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-                llmService = ILLMService.Stub.asInterface(service)
-                isBound = true
-                continuation.resume(llmService!!)
-            }
-
-            override fun onServiceDisconnected(name: ComponentName?) {
-                llmService = null
-                isBound = false
-            }
-        }
-
-        val intent = Intent("com.tree4five.gguf.ACTION_LLM_SERVICE").apply {
-            setPackage("com.tree4five.gguf") // Target the LLM Provider app
-        }
-        
-        val bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE)
-        if (!bound) {
-            continuation.resumeWithException(Exception("Impossible de se lier au service LLM provider"))
-        }
-
-        continuation.invokeOnCancellation {
-            if (isBound) {
-                context.unbindService(connection)
-                isBound = false
-                llmService = null
-            }
-        }
-    }
-
-    suspend fun generateText(prompt: String): String = withContext(Dispatchers.IO) {
-        val service = getService()
-        suspendCancellableCoroutine { continuation ->
-            val callback = object : ILLMCallback.Stub() {
-                override fun onTokenReceived(token: String) {
-                    // You can emit tokens here if you want real-time streaming
-                }
-                
-                override fun onGenerationComplete(fullText: String) {
-                    continuation.resume(fullText)
-                }
-            }
-            service.generateTextStream(prompt, callback)
-        }
-    }
-}
-```
-
-### 3. Using "Tools" (Structured JSON Output)
-Since the local GGUF models are running purely text-to-text, you can simulate "tools" or API responses by instructing the model to reply strictly in JSON format.
-
-Here is how another app (like NutriMate) calls the LLM to return a structured data object instead of raw text:
-
-1. **Prompt Engineering:** Tell the model to reply in pure JSON.
-2. **Clean the Output:** Remove any markdown blocks (like ` ```json `).
-3. **Parse with GSON:** Deserialize the JSON into your Kotlin Data Class.
-
-```kotlin
-import com.google.gson.GsonBuilder
-import android.util.Log
-
-data class Meal(
-    val titre: String,
-    val calories: Int,
-    val ingredients: List<Ingredient>
-)
-
-data class Ingredient(val nom: String, val quantite: String)
-
-suspend fun generateStructuredMeal(client: LLMClient, type: String): Meal? {
-    val prompt = """
-        Write a tasty $type recipe.
-        You MUST reply in pure JSON format only, with the exact following keys:
-        - "titre" (string)
-        - "calories" (integer)
-        - "ingredients" (array of objects with "nom" and "quantite" strings)
-        Do not add any other text or explanation.
-    """.trimIndent()
-    
-    val resultJson = client.generateText(prompt)
-    
-    // Clean up Markdown formatting from the model output
-    var cleanJson = resultJson.trim()
-    if (cleanJson.contains("```json")) cleanJson = cleanJson.substringAfter("```json")
-    else if (cleanJson.contains("```")) cleanJson = cleanJson.substringAfter("```")
-    if (cleanJson.contains("```")) cleanJson = cleanJson.substringBeforeLast("```")
-    cleanJson = cleanJson.trim()
-    
-    return try {
-        val gson = GsonBuilder().setLenient().create()
-        gson.fromJson(cleanJson, Meal::class.java)
-    } catch (e: Exception) {
-        Log.e("LLMClient", "Failed to parse JSON: $cleanJson", e)
-        null
-    }
-}
+// New v2.0 parameterized call + telemetry
+llmService.generateTextStreamWithParams(prompt, 512, 0.0f, 40, 0.95f, 1.10f, true, callback)
+val metricsJson = llmService.engineMetricsJson
 ```
 
 ## License

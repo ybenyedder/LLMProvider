@@ -13,3 +13,6 @@ build/
 
 new_release.keystore
 gradle.properties
+
+app/src/main/jniLibs/
+app/src/main/rust/ggufllm/target/

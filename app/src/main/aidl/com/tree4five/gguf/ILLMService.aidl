@@ -64,4 +64,44 @@ interface ILLMService {
      * the runtime window this engine allocates, or -1 when no model is loaded.
      */
     int getContextLength();
+
+    // ---- RustingStrata v2.0 controls & live telemetry. Appended at the END
+    // so callers compiled against v1.0.x-v1.1.x keep working unchanged. ----
+
+    /**
+     * Generates text with explicit per-request sampling and speculative parameters.
+     */
+    oneway void generateTextStreamWithParams(
+        String prompt,
+        int nPredict,
+        float temperature,
+        int topK,
+        float topP,
+        float repeatPenalty,
+        boolean specDecoding,
+        ILLMCallback callback
+    );
+
+    /**
+     * Returns JSON telemetry about the loaded model, SIMD backend, KV cache usage,
+     * prefill/decode throughput (tok/s), and N-gram speculative hit counts.
+     */
+    String getEngineMetricsJson();
+
+    /**
+     * Clears the KV cache and prefix cache in the Rust engine.
+     */
+    oneway void clearKvCache();
+
+    /**
+     * Updates runtime options (speculative decoding, prefix caching, repeat penalty)
+     * and optionally schedules a model reload if context length or threads changed.
+     */
+    oneway void configureEngine(
+        boolean specDecoding,
+        boolean prefixCache,
+        float repeatPenalty,
+        int nCtx,
+        int nThreads
+    );
 }

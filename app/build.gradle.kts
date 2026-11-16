@@ -3,6 +3,18 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val buildRustNative = tasks.register<Exec>("buildRustNative") {
+    workingDir = rootProject.projectDir
+    val sdkPath = android.sdkDirectory.absolutePath
+    environment("ANDROID_SDK_ROOT", sdkPath)
+    environment("ANDROID_HOME", sdkPath)
+    commandLine("bash", "${rootProject.projectDir}/scripts/build-rust-android.sh")
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(buildRustNative)
+}
+
 android {
     namespace = "com.tree4five.gguf"
     compileSdk = 36
@@ -11,32 +23,23 @@ android {
         applicationId = "com.tree4five.gguf"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.1.7"
+        versionCode = 17
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // The native bridge is built only for arm64: the target device
-            // (SM-P610) is arm64-v8a and each extra ABI doubles the .so size.
-            // x86_64 is added to debug builds only so the emulator can run
-            // the instrumentation suite.
+            // Release builds target arm64-v8a; debug adds x86_64 for emulators.
             abiFilters += "arm64-v8a"
-        }
-
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++17"
-            }
         }
     }
 
     signingConfigs {
         create("release") {
             storeFile = file("../release.keystore")
-            storePassword = project.findProperty("MYAPP_RELEASE_STORE_PASSWORD") as String? ?: "password123"
-            keyAlias = project.findProperty("MYAPP_RELEASE_KEY_ALIAS") as String? ?: "key0"
-            keyPassword = project.findProperty("MYAPP_RELEASE_KEY_PASSWORD") as String? ?: "password123"
+            storePassword = project.findProperty("MYAPP_RELEASE_STORE_PASSWORD") as String? ?: "password"
+            keyAlias = project.findProperty("MYAPP_RELEASE_KEY_ALIAS") as String? ?: "release"
+            keyPassword = project.findProperty("MYAPP_RELEASE_KEY_PASSWORD") as String? ?: "password"
         }
     }
 
@@ -71,12 +74,11 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
-    }
-
-    externalNativeBuild {
-        cmake {
-            path("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
+        unitTests.all {
+            it.systemProperty(
+                "java.library.path",
+                file("src/main/rust/ggufllm/target/release").absolutePath
+            )
         }
     }
 }
@@ -87,11 +89,9 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    
-    // llama.cpp is now built from source in src/main/cpp (libggufllm.so) and
-    // accessed through our own JNI bridge (LlmNative). The de.kherud:llama
-    // binding was removed: it shipped a second libllama that must never be
-    // loaded in the same process as ours.
+
+    // Pure-Rust inference engine (RustingStrata v2.0) built from app/src/main/rust/ggufllm
+    // into libggufllm.so and accessed through LlmNative JNI.
 
     testImplementation("org.json:json:20230227")
     testImplementation("junit:junit:4.13.2")

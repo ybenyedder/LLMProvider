@@ -4,39 +4,26 @@
 LLM Provider: Local AI Engine (by tree4five)
 
 ## Short Description
-Run local AI models (GGUF) on your device. Embeddings, memory, full privacy.
+Pure-Rust local AI engine (GGUF) on device. Fast NEON, embeddings & API.
 
 ## Full Description
-LLM Provider is a powerful, on-device AI inference engine that brings the power of Large Language Models (LLMs) straight to your Android phone or tablet. Designed with privacy and performance in mind, all computations happen locally.
+LLM Provider is a powerful, on-device AI inference engine powered by our pure-Rust RustingStrata engine (`libggufllm.so`). All inference, embeddings, and prompt formatting run 100% locally on your Android phone or tablet with zero cloud dependencies and complete privacy.
 
 **Key Features:**
-* **100% Offline AI:** Chat and generate text without an internet connection.
-* **GGUF Support:** Compatible with popular quantized Llama models (Qwen, Llama-3, etc.), built on our own llama.cpp-based native engine.
-* **Text Embeddings:** Turn any supported model into an embedding provider — get compact int8-packed vectors for any text, entirely on-device.
-* **Generate From Embeddings:** Other apps can upload embedding vectors and let the model continue from them, enabling latent-context and vector-memory pipelines without ever leaving the embedding space.
-* **Universal AIDL Service:** Other apps on your device can connect to the LLM Provider to add AI capabilities seamlessly.
-* **One-Tap Model Presets:** Download recommended models directly — Qwen2.5 0.5B (default, generation + embeddings), Qwen2.5 1.5B (higher quality), or nomic-embed-text-v1.5 (dedicated embedder add-on) — or import your own local `.gguf` files from any HuggingFace URL.
-* **Material Design:** A beautiful, intuitive, and modern interface.
+* **100% Offline Pure-Rust Engine:** Built from the ground up in Rust (no C++ runtime bloat), featuring ARM64 NEON `Q8_K` quantized SIMD kernels, batched prefill, prefix KV-cache reuse, and N-gram speculative decoding.
+* **Wide GGUF Compatibility:** Supports Qwen3, Qwen2.5, Qwen3.5, Llama, SmolLM2, Mistral, Gemma, Phi-3, and Nomic-BERT models across 25 GGML quantization formats.
+* **Text Embeddings & Soft Prompts:** Turn any supported model into an ultra-fast embedding provider and continue generation directly from quantized int8 embedding vectors via AIDL.
+* **Universal AIDL + Local HTTP API:** Other Android apps can bind via AIDL (`com.tree4five.gguf.ACTION_LLM_SERVICE`) or call the optional local OpenAI/Ollama-compatible HTTP server (`127.0.0.1:11435`).
+* **One-Tap Model Presets & Telemetry Dashboard:** Download Qwen3-0.6B, Qwen2.5-0.5B/1.5B, SmolLM2-360M, or nomic-embed with live speed/ETA tracking, atomic verification, and real-time `tok/s` telemetry.
 
-Take control of your AI today!
-
-## What's New (1.1.3)
-* Companion release for Harness Droid 1.2.3. Maintenance build, no functional changes.
-
-## What's New (1.1.2)
-* Companion release for Harness Droid 1.2.2. Maintenance build, no functional changes.
-
-## What's New (1.1.1)
-* Maintenance release: dependency and build updates. Pairs with Harness Droid 1.2.1.
-
-## What's New (1.1.0)
-* New embeddings pipeline exposed over AIDL: embeddingDim, embedText, and generate-from-embeddings (int8-packed vector upload, chunked transfers).
-* One-tap model presets including a dedicated embedding model (nomic-embed-text-v1.5).
-* Upgraded to our own llama.cpp-based native inference engine.
-* Bug fixes and stability improvements.
+## What's New (2.0.0)
+* Complete migration from `llama.cpp` to the pure-Rust RustingStrata v2.0 inference engine (`libggufllm.so`).
+* Added ARM64 NEON `Q8_K` SIMD kernels, batched prompt prefill, prefix KV-cache reuse, and N-gram speculative decoding.
+* Added optional local OpenAI/Ollama-compatible HTTP API server (`127.0.0.1:11435`) alongside backward-compatible AIDL.
+* Completely redesigned Material Dark UI with real-time telemetry, 6 presets, download speed/ETA/cancel, model management, and benchmark playground.
 
 ## Tags
-AI, Machine Learning, Offline Chat, Llama, GGUF, Embeddings, Privacy, Productivity
+AI, Machine Learning, Offline Chat, Rust, GGUF, Embeddings, Privacy, Productivity
 
 ## Category
 Productivity / Tools
