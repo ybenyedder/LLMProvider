@@ -30,6 +30,7 @@ class LLMInferenceService : Service() {
 
     private val serviceScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1) + SupervisorJob())
     private val embedScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val downloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val requestMutex = kotlinx.coroutines.sync.Mutex()
     private val generationCancelled = AtomicBoolean(false)
 
@@ -79,6 +80,22 @@ class LLMInferenceService : Service() {
 
         const val ACTION_RELOAD_MODEL = "com.tree4five.gguf.ACTION_RELOAD_MODEL"
         const val ACTION_UPDATE_CONFIG = "com.tree4five.gguf.ACTION_UPDATE_CONFIG"
+        const val ACTION_START_DOWNLOAD = "com.tree4five.gguf.ACTION_START_DOWNLOAD"
+        const val ACTION_CANCEL_DOWNLOAD = "com.tree4five.gguf.ACTION_CANCEL_DOWNLOAD"
+        const val ACTION_CHAT_GENERATE = "com.tree4five.gguf.ACTION_CHAT_GENERATE"
+        const val ACTION_CHAT_EMBED = "com.tree4five.gguf.ACTION_CHAT_EMBED"
+        const val ACTION_STOP_GENERATION = "com.tree4five.gguf.ACTION_STOP_GENERATION"
+
+        const val EXTRA_URL = "extra_url"
+        const val EXTRA_FILENAME = "extra_filename"
+        const val EXTRA_PROMPT = "extra_prompt"
+        const val EXTRA_N_PREDICT = "extra_n_predict"
+        const val EXTRA_TEMPERATURE = "extra_temperature"
+        const val EXTRA_SPEC_DECODING = "extra_spec_decoding"
+        const val EXTRA_TURN_ID = "extra_turn_id"
+
+        @Volatile
+        var isRunning: Boolean = false
 
         const val DEFAULT_N_CTX = 2048
         const val DEFAULT_N_PREDICT = 512
@@ -93,6 +110,7 @@ class LLMInferenceService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         startForegroundServiceNotification()
         loadOrReloadModel()
         syncHttpServer()
@@ -107,6 +125,44 @@ class LLMInferenceService : Service() {
             ACTION_UPDATE_CONFIG -> {
                 applyRuntimePrefsToEngine()
                 syncHttpServer()
+            }
+            ACTION_START_DOWNLOAD -> {
+                val url = intent.getStringExtra(EXTRA_URL).orEmpty()
+                val fileName = intent.getStringExtra(EXTRA_FILENAME).orEmpty()
+                if (url.isNotEmpty() && fileName.isNotEmpty()) {
+                    startBackgroundDownload(url, fileName)
+                }
+            }
+            ACTION_CANCEL_DOWNLOAD -> {
+                BackgroundTaskCoordinator.downloadCancelled.set(true)
+                BackgroundTaskCoordinator.updateDownloadState { it.copy(statusText = "Annulation...") }
+            }
+            ACTION_CHAT_GENERATE -> {
+                val prompt = intent.getStringExtra(EXTRA_PROMPT).orEmpty()
+                val nPredict = intent.getIntExtra(EXTRA_N_PREDICT, DEFAULT_N_PREDICT)
+                val temperature = intent.getFloatExtra(EXTRA_TEMPERATURE, DEFAULT_TEMPERATURE)
+                val specDecoding = intent.getBooleanExtra(EXTRA_SPEC_DECODING, true)
+                val turnId = intent.getLongExtra(EXTRA_TURN_ID, 0L)
+                if (prompt.isNotEmpty() && turnId > 0L) {
+                    runBackgroundChatGeneration(turnId, prompt, nPredict, temperature, specDecoding)
+                }
+            }
+            ACTION_CHAT_EMBED -> {
+                val turnId = intent.getLongExtra(EXTRA_TURN_ID, 0L)
+                if (turnId > 0L) {
+                    runBackgroundEmbedTest(turnId)
+                }
+            }
+            ACTION_STOP_GENERATION -> {
+                generationCancelled.set(true)
+                val handle = modelHandle
+                if (handle != 0L) {
+                    try {
+                        LlmNative.stop(handle)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error stopping generation", e)
+                    }
+                }
             }
         }
         return START_STICKY
@@ -585,12 +641,206 @@ class LLMInferenceService : Service() {
         }
     }
 
+    private fun startBackgroundDownload(url: String, fileName: String) {
+        if (!BackgroundTaskCoordinator.isDownloading.compareAndSet(false, true)) {
+            return
+        }
+        val modelFile = File(filesDir, fileName)
+        if (modelFile.exists() && url.startsWith("content://")) {
+            modelFile.delete()
+        }
+        BackgroundTaskCoordinator.downloadCancelled.set(false)
+        BackgroundTaskCoordinator.updateDownloadState {
+            BackgroundDownloadState(
+                active = true,
+                fileName = fileName,
+                percent = 0,
+                statusText = "Connexion..."
+            )
+        }
+        updateNotification("Téléchargement $fileName...")
+
+        downloadScope.launch {
+            var lastNotifMs = 0L
+            try {
+                val ok = ModelDownloader.downloadOrCopyModelDetailed(
+                    sourceUri = url,
+                    destinationFile = modelFile,
+                    context = this@LLMInferenceService,
+                    cancelled = BackgroundTaskCoordinator.downloadCancelled
+                ) { st ->
+                    val dlMb = st.downloadedBytes / (1024.0 * 1024.0)
+                    val totalStr = if (st.totalBytes > 0) {
+                        String.format(java.util.Locale.US, "%.1f MB", st.totalBytes / (1024.0 * 1024.0))
+                    } else {
+                        "?"
+                    }
+                    val txt = String.format(
+                        java.util.Locale.US,
+                        "%d%% · %.1f/%s · %.1f MB/s · ETA %ds",
+                        st.percent, dlMb, totalStr, st.speedMbPerSec, st.etaSeconds
+                    )
+                    BackgroundTaskCoordinator.updateDownloadState {
+                        it.copy(
+                            active = true,
+                            fileName = fileName,
+                            percent = st.percent,
+                            downloadedBytes = st.downloadedBytes,
+                            totalBytes = st.totalBytes,
+                            speedMbPerSec = st.speedMbPerSec,
+                            etaSeconds = st.etaSeconds,
+                            statusText = txt
+                        )
+                    }
+                    val now = System.currentTimeMillis()
+                    if (now - lastNotifMs >= 600L) {
+                        lastNotifMs = now
+                        updateNotification("Téléchargement $fileName · ${st.percent}%")
+                    }
+                }
+                if (ok) {
+                    getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                        .edit()
+                        .putString("active_model", modelFile.absolutePath)
+                        .apply()
+                    updateNotification("Modèle prêt : $fileName")
+                    BackgroundTaskCoordinator.emitDownloadFinished(fileName, true, "Modèle prêt : $fileName")
+                } else {
+                    val msg = if (BackgroundTaskCoordinator.downloadCancelled.get()) {
+                        "Téléchargement annulé"
+                    } else {
+                        "Échec du transfert (URL ou en-tête GGUF invalide)"
+                    }
+                    updateNotification(if (modelHandle != 0L) "Ready · ${activeModelPath?.substringAfterLast('/')}" else msg)
+                    BackgroundTaskCoordinator.emitDownloadFinished(fileName, false, msg)
+                }
+            } finally {
+                BackgroundTaskCoordinator.isDownloading.set(false)
+            }
+        }
+    }
+
+    private fun runBackgroundChatGeneration(
+        turnId: Long,
+        prompt: String,
+        nPredict: Int,
+        temperature: Float,
+        specDecoding: Boolean
+    ) {
+        serviceScope.launch {
+            val handle = modelHandle
+            if (handle == 0L) {
+                BackgroundTaskCoordinator.finishChatTurn(
+                    turnId,
+                    finalText = "Modèle non chargé. Appuie sur Démarrer puis réessaie.",
+                    finalMeta = "Non prêt"
+                )
+                return@launch
+            }
+            try {
+                val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val protocol = prefs.getString("api_protocol", "ChatML") ?: "ChatML"
+                val sysPrompt = prefs.getString("system_prompt", "") ?: ""
+                val prefixCache = prefs.getBoolean("prefix_cache", true)
+                val formattedPrompt = PromptManager.formatPrompt(prompt, protocol, sysPrompt)
+                val fullText = StringBuilder()
+                val startNs = System.nanoTime()
+                var firstTokenNs = 0L
+                var chunks = 0
+
+                updateNotification("Génération en cours...")
+                requestMutex.withLock {
+                    serviceState = "generating"
+                    generationCancelled.set(false)
+                    LlmNative.configureEngine(handle, specDecoding, prefixCache, DEFAULT_REPEAT_PENALTY)
+                    LlmNative.generate(
+                        handle = handle,
+                        prompt = formattedPrompt,
+                        nPredict = nPredict.coerceAtLeast(1),
+                        temperature = temperature,
+                        topK = DEFAULT_TOP_K,
+                        topP = DEFAULT_TOP_P,
+                        callback = object : LlmNative.LlmCallback {
+                            override fun onToken(token: String) {
+                                val now = System.nanoTime()
+                                if (firstTokenNs == 0L) {
+                                    firstTokenNs = now
+                                }
+                                chunks++
+                                fullText.append(token)
+                                val ttftMs = (firstTokenNs - startNs) / 1_000_000.0
+                                val genSec = ((now - firstTokenNs) / 1_000_000_000.0).coerceAtLeast(0.01)
+                                val tokS = if (chunks > 1) (chunks - 1) / genSec else 0.0
+                                val statStr = String.format(java.util.Locale.US, "TTFT %.0f ms · %.1f tok/s", ttftMs, tokS)
+                                val shortStat = String.format(java.util.Locale.US, "%.1f tok/s", tokS)
+                                BackgroundTaskCoordinator.appendToken(turnId, token, statStr, shortStat)
+                            }
+
+                            override fun onError(message: String) {
+                                Log.e(TAG, "Generation error: $message")
+                            }
+                        }
+                    )
+                    serviceState = "ready"
+                }
+                val finalMeta = if (generationCancelled.get()) "Arrêté" else null
+                BackgroundTaskCoordinator.finishChatTurn(turnId, finalText = fullText.toString(), finalMeta = finalMeta)
+                updateNotification("Ready · ${activeModelPath?.substringAfterLast('/') ?: "RustingStrata"}")
+            } catch (e: Exception) {
+                serviceState = if (modelHandle != 0L) "ready" else "error"
+                Log.e(TAG, "Background generation failed", e)
+                BackgroundTaskCoordinator.finishChatTurn(
+                    turnId,
+                    finalText = "Erreur : ${e.message}",
+                    finalMeta = "Erreur"
+                )
+            }
+        }
+    }
+
+    private fun runBackgroundEmbedTest(turnId: Long) {
+        embedScope.launch {
+            val handle = modelHandle
+            if (handle == 0L) {
+                BackgroundTaskCoordinator.finishChatTurn(
+                    turnId,
+                    finalText = "Modèle non chargé.",
+                    finalMeta = "Non prêt"
+                )
+                return@launch
+            }
+            val t0 = System.nanoTime()
+            try {
+                val vector = LlmNative.embedText(handle, "Tree4Five RustingStrata local embedding smoke test.", 0)
+                val q8 = EmbeddingCodec.encodeOne(vector)
+                val ms = (System.nanoTime() - t0) / 1_000_000.0
+                BackgroundTaskCoordinator.finishChatTurn(
+                    turnId,
+                    finalText = String.format(
+                        java.util.Locale.US,
+                        "Embedding Q8 OK\nDimension : %d\nPayload Q8 : %d octets",
+                        this@LLMInferenceService.embeddingDim, q8.size
+                    ),
+                    finalMeta = String.format(java.util.Locale.US, "Embed %.2f ms", ms)
+                )
+            } catch (e: Exception) {
+                BackgroundTaskCoordinator.finishChatTurn(
+                    turnId,
+                    finalText = "Erreur embedding : ${e.message}",
+                    finalMeta = "Erreur"
+                )
+            }
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
         super.onDestroy()
+        isRunning = false
         httpServer?.stop()
         httpServer = null
+        downloadScope.cancel()
         serviceScope.cancel()
         embedScope.cancel()
         val handle = modelHandle

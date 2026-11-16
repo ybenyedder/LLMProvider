@@ -14,9 +14,10 @@ data class ChatMessage(
 )
 
 class ChatAdapter(
-    private val items: MutableList<ChatMessage>,
     private val onCopyClick: (String) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    private val items = mutableListOf<ChatMessage>()
 
     override fun getItemViewType(position: Int): Int =
         if (items[position].role == "user") VIEW_USER else VIEW_ASSISTANT
@@ -52,10 +53,23 @@ class ChatAdapter(
         }
     }
 
-    fun notifyLastStreamingUpdate() {
-        if (items.isNotEmpty()) {
-            notifyItemChanged(items.size - 1, PAYLOAD_STREAM)
+    fun submitMessages(newList: List<ChatMessage>) {
+        if (newList.isEmpty()) {
+            if (items.isNotEmpty()) {
+                items.clear()
+                notifyDataSetChanged()
+            }
+            return
         }
+        if (newList.size == items.size && items.isNotEmpty()) {
+            val lastIdx = items.size - 1
+            items[lastIdx] = newList[lastIdx].copy()
+            notifyItemChanged(lastIdx, PAYLOAD_STREAM)
+            return
+        }
+        items.clear()
+        items.addAll(newList.map { it.copy() })
+        notifyDataSetChanged()
     }
 
     private class UserVH(view: View) : RecyclerView.ViewHolder(view) {
