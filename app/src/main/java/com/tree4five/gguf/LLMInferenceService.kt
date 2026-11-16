@@ -154,6 +154,7 @@ class LLMInferenceService : Service() {
                 }
             }
             ACTION_STOP_GENERATION -> {
+                BackgroundTaskCoordinator.cancelActiveTurn()
                 generationCancelled.set(true)
                 val handle = modelHandle
                 if (handle != 0L) {
@@ -452,6 +453,7 @@ class LLMInferenceService : Service() {
         }
 
         override fun stopGeneration() {
+            BackgroundTaskCoordinator.cancelActiveTurn()
             generationCancelled.set(true)
             val handle = modelHandle
             if (handle != 0L) {
@@ -728,11 +730,14 @@ class LLMInferenceService : Service() {
         specDecoding: Boolean
     ) {
         serviceScope.launch {
+            if (BackgroundTaskCoordinator.isTurnCancelled(turnId)) {
+                return@launch
+            }
             val handle = modelHandle
             if (handle == 0L) {
                 BackgroundTaskCoordinator.finishChatTurn(
                     turnId,
-                    finalText = "Modèle non chargé. Appuie sur Démarrer puis réessaie.",
+                    finalText = "Modèle non chargé. Choisis un modèle GGUF et réessaie.",
                     finalMeta = "Non prêt"
                 )
                 return@launch
@@ -750,6 +755,9 @@ class LLMInferenceService : Service() {
 
                 updateNotification("Génération en cours...")
                 requestMutex.withLock {
+                    if (BackgroundTaskCoordinator.isTurnCancelled(turnId)) {
+                        return@withLock
+                    }
                     serviceState = "generating"
                     generationCancelled.set(false)
                     LlmNative.configureEngine(handle, specDecoding, prefixCache, DEFAULT_REPEAT_PENALTY)
@@ -762,6 +770,10 @@ class LLMInferenceService : Service() {
                         topP = DEFAULT_TOP_P,
                         callback = object : LlmNative.LlmCallback {
                             override fun onToken(token: String) {
+                                if (BackgroundTaskCoordinator.isTurnCancelled(turnId)) {
+                                    LlmNative.stop(handle)
+                                    return
+                                }
                                 val now = System.nanoTime()
                                 if (firstTokenNs == 0L) {
                                     firstTokenNs = now
@@ -771,8 +783,17 @@ class LLMInferenceService : Service() {
                                 val ttftMs = (firstTokenNs - startNs) / 1_000_000.0
                                 val genSec = ((now - firstTokenNs) / 1_000_000_000.0).coerceAtLeast(0.01)
                                 val tokS = if (chunks > 1) (chunks - 1) / genSec else 0.0
-                                val statStr = String.format(java.util.Locale.US, "TTFT %.0f ms · %.1f tok/s", ttftMs, tokS)
-                                val shortStat = String.format(java.util.Locale.US, "%.1f tok/s", tokS)
+                                val thinking = fullText.contains("<think>") && !fullText.contains("</think>")
+                                val statStr = if (thinking) {
+                                    String.format(java.util.Locale.US, "Réflexion · %.1f tok/s", tokS)
+                                } else {
+                                    String.format(java.util.Locale.US, "TTFT %.0f ms · %.1f tok/s", ttftMs, tokS)
+                                }
+                                val shortStat = if (thinking) {
+                                    String.format(java.util.Locale.US, "Réflexion · %.1f t/s", tokS)
+                                } else {
+                                    String.format(java.util.Locale.US, "%.1f tok/s", tokS)
+                                }
                                 BackgroundTaskCoordinator.appendToken(turnId, token, statStr, shortStat)
                             }
 
@@ -783,7 +804,7 @@ class LLMInferenceService : Service() {
                     )
                     serviceState = "ready"
                 }
-                val finalMeta = if (generationCancelled.get()) "Arrêté" else null
+                val finalMeta = if (generationCancelled.get() || BackgroundTaskCoordinator.isTurnCancelled(turnId)) "Arrêté" else null
                 BackgroundTaskCoordinator.finishChatTurn(turnId, finalText = fullText.toString(), finalMeta = finalMeta)
                 updateNotification("Ready · ${activeModelPath?.substringAfterLast('/') ?: "RustingStrata"}")
             } catch (e: Exception) {

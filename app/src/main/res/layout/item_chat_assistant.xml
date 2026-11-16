@@ -41,11 +41,20 @@
                 android:textSize="11sp" />
 
             <ImageView
+                android:id="@+id/btnRegenerate"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:contentDescription="Régénérer"
+                android:padding="7dp"
+                android:src="@drawable/ic_refresh" />
+
+            <ImageView
                 android:id="@+id/btnCopy"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="2dp"
                 android:contentDescription="Copier"
-                android:padding="6dp"
+                android:padding="7dp"
                 android:src="@drawable/ic_copy" />
         </LinearLayout>
     </LinearLayout>

@@ -20,6 +20,15 @@ class BackgroundTaskCoordinatorTest {
 
         BackgroundTaskCoordinator.finishChatTurn(turnId)
         assertFalse(BackgroundTaskCoordinator.chatState.value.isGenerating)
+
+        val t2 = BackgroundTaskCoordinator.startChatTurn("Msg 2", "Réflexion...")
+        assertTrue(BackgroundTaskCoordinator.chatState.value.isGenerating)
+        BackgroundTaskCoordinator.cancelActiveTurn()
+        assertFalse(BackgroundTaskCoordinator.chatState.value.isGenerating)
+        assertTrue(BackgroundTaskCoordinator.isTurnCancelled(t2))
+
+        BackgroundTaskCoordinator.truncateFrom(2)
+        assertEquals(2, BackgroundTaskCoordinator.chatState.value.messages.size)
         BackgroundTaskCoordinator.clearChat()
     }
 

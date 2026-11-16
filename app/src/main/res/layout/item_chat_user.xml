@@ -11,11 +11,13 @@
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         android:background="@drawable/bg_chat_user"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
         android:lineSpacingExtra="3dp"
         android:maxWidth="300dp"
         android:paddingHorizontal="15dp"
         android:paddingVertical="10dp"
         android:textColor="@color/colorOnBackground"
-        android:textIsSelectable="true"
         android:textSize="14.5sp" />
 </FrameLayout>

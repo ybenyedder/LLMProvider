@@ -41,6 +41,7 @@ object BackgroundTaskCoordinator {
     private val nextTurnId = AtomicLong(1L)
     private val chatMessages = mutableListOf<ChatMessage>()
     private var activeTurnId: Long = 0L
+    private var cancelledTurnId: Long = 0L
     private var chatVersion: Long = 0L
 
     private val _downloadState = MutableStateFlow(BackgroundDownloadState())
@@ -66,11 +67,12 @@ object BackgroundTaskCoordinator {
         )
     }
 
-    fun startChatTurn(userPrompt: String, initialMeta: String = "Prefill..."): Long {
+    fun startChatTurn(userPrompt: String, initialMeta: String = "Réflexion..."): Long {
         synchronized(lock) {
             chatMessages.add(ChatMessage("user", userPrompt))
             chatMessages.add(ChatMessage("assistant", "", initialMeta))
             activeTurnId = nextTurnId.getAndIncrement()
+            cancelledTurnId = 0L
             chatVersion++
             _chatState.value = ChatUiSnapshot(
                 messages = chatMessages.map { it.copy() },
@@ -82,9 +84,36 @@ object BackgroundTaskCoordinator {
         }
     }
 
+    fun cancelActiveTurn() {
+        synchronized(lock) {
+            if (activeTurnId == 0L) return
+            cancelledTurnId = activeTurnId
+            if (chatMessages.isNotEmpty() && chatMessages.last().role == "assistant") {
+                val last = chatMessages.last()
+                if (last.content.isBlank()) {
+                    last.content = "[Arrêté]"
+                }
+                last.meta = "Arrêté"
+            }
+            chatVersion++
+            _chatState.value = ChatUiSnapshot(
+                messages = chatMessages.map { it.copy() },
+                isGenerating = false,
+                composerStats = "Arrêté",
+                version = chatVersion
+            )
+        }
+    }
+
+    fun isTurnCancelled(turnId: Long): Boolean {
+        synchronized(lock) {
+            return turnId == 0L || turnId == cancelledTurnId || turnId != activeTurnId
+        }
+    }
+
     fun appendToken(turnId: Long, token: String, statStr: String, shortStat: String) {
         synchronized(lock) {
-            if (turnId != activeTurnId || chatMessages.isEmpty()) return
+            if (turnId != activeTurnId || turnId == cancelledTurnId || chatMessages.isEmpty()) return
             val last = chatMessages.last()
             last.content += token
             last.meta = statStr
@@ -105,9 +134,11 @@ object BackgroundTaskCoordinator {
             if (finalText != null && last.content.isEmpty()) {
                 last.content = finalText
             }
-            if (finalMeta != null) {
+            if (turnId == cancelledTurnId) {
+                last.meta = "Arrêté"
+            } else if (finalMeta != null) {
                 last.meta = finalMeta
-            } else if (last.meta == "Prefill...") {
+            } else if (last.meta == "Réflexion..." || last.meta == "Prefill...") {
                 last.meta = "Terminé"
             }
             chatVersion++
@@ -120,8 +151,28 @@ object BackgroundTaskCoordinator {
         }
     }
 
+    /**
+     * Truncates conversation starting at [fromIndex] (inclusive) so an edited or regenerated
+     * message replaces that branch cleanly.
+     */
+    fun truncateFrom(fromIndex: Int) {
+        synchronized(lock) {
+            if (fromIndex in 0 until chatMessages.size) {
+                chatMessages.subList(fromIndex, chatMessages.size).clear()
+                chatVersion++
+                _chatState.value = ChatUiSnapshot(
+                    messages = chatMessages.map { it.copy() },
+                    isGenerating = false,
+                    composerStats = "",
+                    version = chatVersion
+                )
+            }
+        }
+    }
+
     fun clearChat() {
         synchronized(lock) {
+            cancelledTurnId = activeTurnId
             activeTurnId = 0L
             chatMessages.clear()
             chatVersion++

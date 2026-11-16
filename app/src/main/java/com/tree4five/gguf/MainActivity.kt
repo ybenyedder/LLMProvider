@@ -18,6 +18,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.DecelerateInterpolator
+import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -33,6 +34,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.tree4five.gguf.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private var telemetryJob: Job? = null
     private var lastHandledDownloadEventId = 0L
     private var wasGenerating = false
+    private var editingIndex = -1
 
     private val modelFileNames = mutableListOf<String>()
     private var selectedModelName: String? = null
@@ -168,14 +171,81 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupChatRecycler() {
-        chatAdapter = ChatAdapter { text ->
-            copyToClipboard("LLMProvider", text, "Réponse copiée")
-        }
+        chatAdapter = ChatAdapter(
+            onCopyClick = { text ->
+                copyToClipboard("LLMProvider", text, "Réponse copiée")
+            },
+            onUserClick = { pos, msg ->
+                showUserMessageActions(pos, msg)
+            },
+            onRegenerateClick = { assistantPos ->
+                regenerateFromAssistant(assistantPos)
+            }
+        )
         binding.rvChat.layoutManager = LinearLayoutManager(this).apply {
             stackFromEnd = true
         }
+        binding.rvChat.itemAnimator = null
         binding.rvChat.adapter = chatAdapter
         refreshChatVisibility(BackgroundTaskCoordinator.chatState.value.messages.isEmpty())
+    }
+
+    private fun showUserMessageActions(position: Int, msg: ChatMessage) {
+        val sheet = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.sheet_message_actions, null)
+        view.findViewById<TextView>(R.id.tvSheetPreview).text = msg.content
+
+        view.findViewById<View>(R.id.actionEdit).setOnClickListener {
+            sheet.dismiss()
+            if (BackgroundTaskCoordinator.chatState.value.isGenerating) {
+                stopActiveGeneration()
+            }
+            editingIndex = position
+            binding.layoutEditingBanner.visibility = View.VISIBLE
+            binding.etPrompt.setText(msg.content)
+            binding.etPrompt.setSelection(msg.content.length)
+            binding.etPrompt.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(binding.etPrompt, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        view.findViewById<View>(R.id.actionCopy).setOnClickListener {
+            sheet.dismiss()
+            copyToClipboard("LLMProvider", msg.content, "Message copié")
+        }
+
+        view.findViewById<View>(R.id.actionResend).setOnClickListener {
+            sheet.dismiss()
+            if (BackgroundTaskCoordinator.chatState.value.isGenerating) {
+                stopActiveGeneration()
+            }
+            BackgroundTaskCoordinator.truncateFrom(position)
+            sendUserPrompt(msg.content)
+        }
+
+        sheet.setContentView(view)
+        sheet.show()
+    }
+
+    private fun regenerateFromAssistant(assistantPos: Int) {
+        if (BackgroundTaskCoordinator.chatState.value.isGenerating) {
+            stopActiveGeneration()
+        }
+        val messages = BackgroundTaskCoordinator.chatState.value.messages
+        var userIdx = assistantPos - 1
+        while (userIdx >= 0 && messages[userIdx].role != "user") {
+            userIdx--
+        }
+        if (userIdx >= 0) {
+            val prompt = messages[userIdx].content
+            BackgroundTaskCoordinator.truncateFrom(userIdx)
+            sendUserPrompt(prompt)
+        }
+    }
+
+    private fun clearEditingMode() {
+        editingIndex = -1
+        binding.layoutEditingBanner.visibility = View.GONE
     }
 
     private fun refreshChatVisibility(empty: Boolean) {
@@ -218,7 +288,10 @@ class MainActivity : AppCompatActivity() {
                 chatAdapter.submitMessages(snap.messages)
                 refreshChatVisibility(snap.messages.isEmpty())
                 if (snap.messages.isNotEmpty()) {
-                    binding.rvChat.scrollToPosition(snap.messages.size - 1)
+                    binding.rvChat.post {
+                        val lm = binding.rvChat.layoutManager as? LinearLayoutManager
+                        lm?.scrollToPositionWithOffset(snap.messages.size - 1, -100000)
+                    }
                 }
                 setGeneratingUi(snap.isGenerating)
                 binding.tvComposerStats.text = snap.composerStats
@@ -335,6 +408,8 @@ class MainActivity : AppCompatActivity() {
         val edit = prefs.edit()
         if (activeModelFile != null) {
             edit.putString("active_model", File(filesDir, activeModelFile).absolutePath)
+        } else {
+            edit.remove("active_model")
         }
         val temp = binding.etTemp.text?.toString()?.toFloatOrNull()?.coerceIn(0f, 2f)
             ?: LLMInferenceService.DEFAULT_TEMPERATURE
@@ -383,8 +458,14 @@ class MainActivity : AppCompatActivity() {
             if (BackgroundTaskCoordinator.chatState.value.isGenerating) {
                 stopActiveGeneration()
             }
+            clearEditingMode()
             BackgroundTaskCoordinator.clearChat()
             selectTab(0, animate = true)
+        }
+
+        binding.btnCancelEdit.setOnClickListener {
+            clearEditingMode()
+            binding.etPrompt.setText("")
         }
 
         binding.btnStartBind.setOnClickListener {
@@ -412,18 +493,22 @@ class MainActivity : AppCompatActivity() {
             selectFileLauncher.launch(arrayOf("*/*"))
         }
 
-        binding.btnSendOrStop.setOnClickListener {
-            if (BackgroundTaskCoordinator.chatState.value.isGenerating) {
-                stopActiveGeneration()
-            } else {
-                val prompt = binding.etPrompt.text.toString().trim()
-                if (prompt.isEmpty()) {
-                    Toast.makeText(this, "Écris un message d'abord", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                binding.etPrompt.setText("")
-                sendUserPrompt(prompt)
+        binding.btnSend.setOnClickListener {
+            val prompt = binding.etPrompt.text.toString().trim()
+            if (prompt.isEmpty()) {
+                Toast.makeText(this, "Écris un message d'abord", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
+            if (editingIndex >= 0) {
+                BackgroundTaskCoordinator.truncateFrom(editingIndex)
+                clearEditingMode()
+            }
+            binding.etPrompt.setText("")
+            sendUserPrompt(prompt)
+        }
+
+        binding.btnStopGen.setOnClickListener {
+            stopActiveGeneration()
         }
 
         binding.chipQuickBench.setOnClickListener {
@@ -460,25 +545,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopActiveGeneration() {
+        BackgroundTaskCoordinator.cancelActiveTurn()
         try {
             llmService?.stopGeneration()
         } catch (_: Exception) {
         }
-        startService(Intent(this, LLMInferenceService::class.java).apply {
-            action = LLMInferenceService.ACTION_STOP_GENERATION
-        })
+        if (LLMInferenceService.isRunning) {
+            startService(Intent(this, LLMInferenceService::class.java).apply {
+                action = LLMInferenceService.ACTION_STOP_GENERATION
+            })
+        }
     }
 
     private fun setGeneratingUi(active: Boolean) {
-        if (active) {
-            binding.btnSendOrStop.setBackgroundResource(R.drawable.bg_circle_stop)
-            binding.ivSendStopIcon.setImageResource(R.drawable.ic_stop)
-            binding.ivSendStopIcon.contentDescription = "Arrêter"
-        } else {
-            binding.btnSendOrStop.setBackgroundResource(R.drawable.bg_circle_send)
-            binding.ivSendStopIcon.setImageResource(R.drawable.ic_send)
-            binding.ivSendStopIcon.contentDescription = "Envoyer"
-        }
+        binding.btnSend.visibility = if (active) View.GONE else View.VISIBLE
+        binding.btnStopGen.visibility = if (active) View.VISIBLE else View.GONE
     }
 
     private fun setDownloadControlsEnabled(enabled: Boolean) {
@@ -546,11 +627,20 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Supprimer le modèle ?")
             .setMessage(String.format(Locale.US, "Supprimer %s (%.1f MB) ?", fileName, sizeMb))
             .setPositiveButton("Supprimer") { _, _ ->
+                val wasSelected = selectedModelName == fileName
                 if (file.delete()) {
-                    if (selectedModelName == fileName) selectedModelName = null
+                    if (wasSelected) selectedModelName = null
                     Toast.makeText(this, "Supprimé : $fileName", Toast.LENGTH_SHORT).show()
                     updateModelList()
+                    savePreferencesFromUi(selectedModelName)
                     updateStorageInfo()
+                    if (wasSelected && LLMInferenceService.isRunning) {
+                        if (selectedModelName != null) {
+                            startOrReloadService(LLMInferenceService.ACTION_RELOAD_MODEL)
+                        } else {
+                            stopInferenceService()
+                        }
+                    }
                 }
             }
             .setNegativeButton("Annuler", null)
@@ -707,6 +797,7 @@ class MainActivity : AppCompatActivity() {
                 bgRes = R.drawable.bg_badge_ready
                 colorRes = R.color.colorPrimary
                 dotRes = R.drawable.dot_status_ready
+                binding.btnStartBind.text = "Prêt"
                 binding.tvEmptySubtitle.text = "Moteur RustingStrata ($simd) · Prêt hors-ligne"
             }
             "generating" -> {
@@ -714,12 +805,14 @@ class MainActivity : AppCompatActivity() {
                 bgRes = R.drawable.bg_badge_gen
                 colorRes = R.color.colorSecondary
                 dotRes = R.drawable.dot_status_gen
+                binding.btnStartBind.text = "Actif"
             }
             "loading" -> {
                 text = "LOADING"
                 bgRes = R.drawable.bg_badge_idle
                 colorRes = R.color.colorWarning
                 dotRes = R.drawable.dot_status_gen
+                binding.btnStartBind.text = "Charge..."
                 binding.tvEmptySubtitle.text = "Chargement du modèle GGUF..."
             }
             "error", "missing" -> {
@@ -727,12 +820,14 @@ class MainActivity : AppCompatActivity() {
                 bgRes = R.drawable.bg_badge_idle
                 colorRes = R.color.colorDanger
                 dotRes = R.drawable.dot_status_idle
+                binding.btnStartBind.text = "Erreur"
             }
             else -> {
                 text = state.uppercase(Locale.US)
                 bgRes = R.drawable.bg_badge_idle
                 colorRes = R.color.colorMuted
                 dotRes = R.drawable.dot_status_idle
+                binding.btnStartBind.text = "Démarrer"
                 binding.tvEmptySubtitle.text = "Moteur RustingStrata · 100% hors-ligne"
             }
         }
@@ -743,7 +838,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderIdleState(label: String) {
-        binding.btnStartBind.text = "Démarrer"
         applyStatusBadge(label.lowercase(Locale.US), "Rust")
         val rss = readProcessRssMiB()
         binding.tvMetricMemory.text = if (rss > 0) "$rss MiB" else "-- MiB"
@@ -873,11 +967,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun runEmbeddingSmokeTest() {
-        if (!isBound && !LLMInferenceService.isRunning) {
-            Toast.makeText(this, "Appuie sur Démarrer en haut d'abord", Toast.LENGTH_SHORT).show()
-            return
+    private fun ensureServiceBootedForChat(): Boolean {
+        if (LLMInferenceService.isRunning || isBound) return true
+        val model = selectedModelName
+        if (model.isNullOrEmpty()) {
+            Toast.makeText(this, "Télécharge ou sélectionne un modèle GGUF", Toast.LENGTH_SHORT).show()
+            selectTab(1, animate = true)
+            return false
         }
+        savePreferencesFromUi(model)
+        startForegroundCompat(Intent(this, LLMInferenceService::class.java).apply {
+            action = LLMInferenceService.ACTION_RELOAD_MODEL
+        })
+        bindService(Intent(this, LLMInferenceService::class.java), connection, Context.BIND_AUTO_CREATE)
+        return true
+    }
+
+    private fun runEmbeddingSmokeTest() {
+        if (!ensureServiceBootedForChat()) return
         val turnId = BackgroundTaskCoordinator.startChatTurn("Test Embedding Q8", "Mesure en cours...")
         startForegroundCompat(Intent(this, LLMInferenceService::class.java).apply {
             action = LLMInferenceService.ACTION_CHAT_EMBED
@@ -910,13 +1017,10 @@ class MainActivity : AppCompatActivity() {
         forceGreedy: Boolean = false,
         maxTokensOverride: Int? = null
     ) {
-        if (!isBound && !LLMInferenceService.isRunning) {
-            Toast.makeText(this, "Appuie sur Démarrer en haut d'abord", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (!ensureServiceBootedForChat()) return
         savePreferencesFromUi(selectedModelName)
 
-        val turnId = BackgroundTaskCoordinator.startChatTurn(prompt, "Prefill...")
+        val turnId = BackgroundTaskCoordinator.startChatTurn(prompt, "Réflexion...")
         val payload = buildInferencePayload(prompt)
 
         val nPredict = maxTokensOverride

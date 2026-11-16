@@ -238,6 +238,36 @@
                 android:paddingTop="10dp"
                 android:paddingBottom="10dp">
 
+                <LinearLayout
+                    android:id="@+id/layoutEditingBanner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:background="@drawable/bg_badge_idle"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="5dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Modification du message"
+                        android:textColor="@color/colorPrimary"
+                        android:textSize="11.5sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/btnCancelEdit"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:contentDescription="Annuler la modification"
+                        android:padding="4dp"
+                        android:src="@drawable/ic_close" />
+                </LinearLayout>
+
                 <EditText
                     android:id="@+id/etPrompt"
                     android:layout_width="match_parent"
@@ -297,19 +327,48 @@
                         android:textSize="11sp" />
 
                     <FrameLayout
-                        android:id="@+id/btnSendOrStop"
+                        android:id="@+id/btnSend"
                         android:layout_width="36dp"
                         android:layout_height="36dp"
-                        android:background="@drawable/bg_circle_send">
+                        android:background="@drawable/bg_circle_send"
+                        android:clickable="true"
+                        android:focusable="true">
 
                         <ImageView
-                            android:id="@+id/ivSendStopIcon"
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:layout_gravity="center"
                             android:contentDescription="Envoyer"
                             android:src="@drawable/ic_send" />
                     </FrameLayout>
+
+                    <LinearLayout
+                        android:id="@+id/btnStopGen"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:background="@drawable/bg_stop_pill"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="13dp"
+                        android:visibility="gone">
+
+                        <ImageView
+                            android:layout_width="13dp"
+                            android:layout_height="13dp"
+                            android:contentDescription="Arrêter"
+                            android:src="@drawable/ic_stop" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:text="Arrêter"
+                            android:textColor="@color/colorBackground"
+                            android:textSize="12.5sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
