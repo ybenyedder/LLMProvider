@@ -3,10 +3,10 @@
     android:id="@android:id/text1"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/auralisSurface2"
+    android:background="@color/colorSurfaceElevated"
     android:ellipsize="end"
     android:maxLines="2"
     android:paddingHorizontal="16dp"
     android:paddingVertical="12dp"
-    android:textColor="@color/auralisTextPrimary"
-    android:textSize="13sp" />
+    android:textColor="@color/colorOnBackground"
+    android:textSize="13.5sp" />

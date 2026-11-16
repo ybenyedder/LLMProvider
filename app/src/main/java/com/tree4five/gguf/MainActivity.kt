@@ -15,9 +15,12 @@ import android.os.IBinder
 import android.os.StatFs
 import android.provider.OpenableColumns
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.DecelerateInterpolator
 import android.widget.ArrayAdapter
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,6 +32,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.tree4five.gguf.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +42,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.Locale
@@ -46,7 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class MainActivity : AppCompatActivity() {
 
-    private data class ModelPreset(val label: String, val url: String)
+    private data class ModelPreset(val title: String, val subtitle: String, val url: String)
 
     private var llmService: ILLMService? = null
     private var isBound = false
@@ -54,33 +59,43 @@ class MainActivity : AppCompatActivity() {
     private val uiScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var telemetryJob: Job? = null
     private val downloadCancelled = AtomicBoolean(false)
+    private val isGenerating = AtomicBoolean(false)
 
     private val modelFileNames = mutableListOf<String>()
+    private var selectedModelName: String? = null
+    private val chatMessages = mutableListOf<ChatMessage>()
+    private lateinit var chatAdapter: ChatAdapter
     private var currentTab = 0
 
     private val modelPresets = listOf(
         ModelPreset(
-            "Qwen3 0.6B (Q8_0 · 640 MB · Rapide)",
+            "Qwen3 0.6B",
+            "Q8_0 · 640 MB · Ultra rapide",
             "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf"
         ),
         ModelPreset(
-            "Qwen2.5 0.5B Instruct (Q4_K_M · 400 MB)",
+            "Qwen2.5 0.5B Instruct",
+            "Q4_K_M · 400 MB · Léger",
             "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
         ),
         ModelPreset(
-            "Qwen2.5 1.5B Instruct (Q4_K_M · 990 MB)",
+            "Qwen2.5 1.5B Instruct",
+            "Q4_K_M · 990 MB · Équilibré",
             "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
         ),
         ModelPreset(
-            "Qwen3 1.7B (Q8_0 · 1.8 GB)",
+            "Qwen3 1.7B",
+            "Q8_0 · 1.8 GB · Qualité",
             "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf"
         ),
         ModelPreset(
-            "SmolLM2 360M Instruct (Q4_K_M · 258 MB)",
+            "SmolLM2 360M Instruct",
+            "Q4_K_M · 258 MB · Minimal",
             "https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF/resolve/main/SmolLM2-360M-Instruct-Q4_K_M.gguf"
         ),
         ModelPreset(
-            "Nomic Embed v1.5 (Q8_0 · 146 MB)",
+            "Nomic Embed v1.5",
+            "Q8_0 · 146 MB · Embeddings",
             "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf"
         )
     )
@@ -89,7 +104,7 @@ class MainActivity : AppCompatActivity() {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             llmService = ILLMService.Stub.asInterface(service)
             isBound = true
-            binding.btnStartBind.text = "Recharger"
+            binding.btnStartBind.text = "Actif"
             startTelemetryLoop()
             Toast.makeText(this@MainActivity, "Connecté au moteur RustingStrata", Toast.LENGTH_SHORT).show()
         }
@@ -118,19 +133,17 @@ class MainActivity : AppCompatActivity() {
         applyEdgeToEdgeInsets()
 
         checkPermissions()
+        setupChatRecycler()
         restorePreferences()
         setupDropdowns()
+        renderPresetCatalogue()
         updateModelList()
         updateStorageInfo()
-        setupTabs()
+        setupNavigation()
         setupPromptChips()
         setupActions()
 
-        if (modelFileNames.isEmpty()) {
-            selectTab(1, animate = false)
-        } else {
-            selectTab(0, animate = false)
-        }
+        selectTab(if (modelFileNames.isEmpty()) 1 else 0, animate = false)
         renderIdleState("IDLE")
     }
 
@@ -142,73 +155,83 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyEdgeToEdgeInsets() {
-        val baseTop = resources.getDimensionPixelSizeOrPx(14)
-        val baseBottom = resources.getDimensionPixelSizeOrPx(28)
-        val baseHoriz = resources.getDimensionPixelSizeOrPx(16)
         ViewCompat.setOnApplyWindowInsetsListener(binding.rootContainer) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(
-                baseHoriz + bars.left,
-                baseTop + bars.top,
-                baseHoriz + bars.right,
-                baseBottom + bars.bottom
-            )
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
     }
 
-    private fun android.content.res.Resources.getDimensionPixelSizeOrPx(dp: Int): Int =
-        (dp * displayMetrics.density).toInt()
+    private fun setupChatRecycler() {
+        chatAdapter = ChatAdapter(chatMessages) { text ->
+            copyToClipboard("LLMProvider", text, "Réponse copiée")
+        }
+        binding.rvChat.layoutManager = LinearLayoutManager(this).apply {
+            stackFromEnd = true
+        }
+        binding.rvChat.adapter = chatAdapter
+        refreshChatVisibility()
+    }
+
+    private fun refreshChatVisibility() {
+        val empty = chatMessages.isEmpty()
+        binding.layoutEmptyState.visibility = if (empty) View.VISIBLE else View.GONE
+        binding.rvChat.visibility = if (empty) View.GONE else View.VISIBLE
+    }
 
     private fun setupDropdowns() {
-        binding.spinnerModels.setDropDownBackgroundResource(R.drawable.bg_auralis_popup)
-        binding.spinnerPresetModels.setDropDownBackgroundResource(R.drawable.bg_auralis_popup)
-        binding.spinnerProtocol.setDropDownBackgroundResource(R.drawable.bg_auralis_popup)
+        binding.spinnerProtocol.setDropDownBackgroundResource(R.drawable.bg_dropdown_popup)
+    }
 
-        val presetLabels = modelPresets.map { it.label }
-        binding.spinnerPresetModels.setAdapter(
-            ArrayAdapter(this, R.layout.item_auralis_dropdown, presetLabels)
-        )
-        binding.spinnerPresetModels.setOnItemClickListener { _, _, position, _ ->
-            if (position in modelPresets.indices) {
-                binding.etModelUrl.setText(modelPresets[position].url)
-            }
-        }
-        if (binding.etModelUrl.text.isNullOrBlank()) {
-            binding.spinnerPresetModels.setText(modelPresets[0].label, false)
-            binding.etModelUrl.setText(modelPresets[0].url)
-        }
+    private fun renderPresetCatalogue() {
+        val inflater = LayoutInflater.from(this)
+        binding.llPresetModels.removeAllViews()
+        val marginPx = (8 * resources.displayMetrics.density).toInt()
 
-        binding.spinnerModels.setOnItemClickListener { _, _, _, _ ->
-            selectedModelFileName()?.let { fileName ->
-                savePreferencesFromUi(fileName)
-                updateActiveModelSubtitle(fileName)
+        modelPresets.forEachIndexed { idx, preset ->
+            val row = inflater.inflate(R.layout.item_model_row, binding.llPresetModels, false)
+            row.findViewById<TextView>(R.id.tvRowTitle).text = preset.title
+            row.findViewById<TextView>(R.id.tvRowSubtitle).text = preset.subtitle
+            row.findViewById<TextView>(R.id.tvRowBadge).visibility = View.GONE
+            val action = row.findViewById<ImageView>(R.id.ivRowAction)
+            action.setImageResource(R.drawable.ic_download)
+
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            if (idx > 0) lp.topMargin = marginPx
+            row.layoutParams = lp
+
+            row.setOnClickListener {
+                binding.etModelUrl.setText(preset.url)
+                startDownloadOrImport(preset.url)
             }
+            binding.llPresetModels.addView(row)
         }
     }
 
-    private fun setupTabs() {
-        binding.tabStudio.setOnClickListener { selectTab(0, animate = true) }
-        binding.tabModels.setOnClickListener { selectTab(1, animate = true) }
-        binding.tabEngine.setOnClickListener { selectTab(2, animate = true) }
+    private fun setupNavigation() {
+        binding.navChat.setOnClickListener { selectTab(0, animate = true) }
+        binding.navModels.setOnClickListener { selectTab(1, animate = true) }
+        binding.navEngine.setOnClickListener { selectTab(2, animate = true) }
+        binding.layoutModelPill.setOnClickListener { selectTab(1, animate = true) }
     }
 
     private fun selectTab(index: Int, animate: Boolean) {
         currentTab = index
-        val tabs = listOf(binding.tabStudio, binding.tabModels, binding.tabEngine)
-        val panels = listOf(binding.panelStudio, binding.panelModels, binding.panelEngine)
+        val panels = listOf(binding.panelChat, binding.panelModels, binding.panelEngine)
+        val navIcons = listOf(binding.ivNavChat, binding.ivNavModels, binding.ivNavEngine)
+        val navLabels = listOf(binding.tvNavChat, binding.tvNavModels, binding.tvNavEngine)
 
-        val ink = ContextCompat.getColor(this, R.color.auralisInk)
-        val muted = ContextCompat.getColor(this, R.color.auralisTextMuted)
+        val activeColor = ContextCompat.getColor(this, R.color.colorPrimary)
+        val mutedColor = ContextCompat.getColor(this, R.color.colorMuted)
 
-        tabs.forEachIndexed { i, tab ->
-            if (i == index) {
-                tab.setBackgroundResource(R.drawable.bg_auralis_tab_active)
-                tab.setTextColor(ink)
-            } else {
-                tab.background = null
-                tab.setTextColor(muted)
-            }
+        navIcons.forEachIndexed { i, iv ->
+            val tint = if (i == index) activeColor else mutedColor
+            iv.setColorFilter(tint)
+            navLabels[i].setTextColor(tint)
+            navLabels[i].setTypeface(null, if (i == index) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
         }
 
         panels.forEachIndexed { i, panel ->
@@ -217,11 +240,11 @@ class MainActivity : AppCompatActivity() {
                 panel.visibility = View.VISIBLE
                 if (animate) {
                     panel.alpha = 0f
-                    panel.translationY = 18f
+                    panel.translationY = 14f
                     panel.animate()
                         .alpha(1f)
                         .translationY(0f)
-                        .setDuration(180L)
+                        .setDuration(160L)
                         .setInterpolator(DecelerateInterpolator())
                         .start()
                 } else {
@@ -239,7 +262,7 @@ class MainActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val protocols = listOf("ChatML", "OpenAI", "Ollama", "Raw")
         binding.spinnerProtocol.setAdapter(
-            ArrayAdapter(this, R.layout.item_auralis_dropdown, protocols)
+            ArrayAdapter(this, R.layout.item_dropdown, protocols)
         )
         binding.spinnerProtocol.setText(prefs.getString("api_protocol", "ChatML"), false)
 
@@ -256,7 +279,7 @@ class MainActivity : AppCompatActivity() {
         updateHttpBadge(binding.switchHttpServer.isChecked)
     }
 
-    private fun savePreferencesFromUi(activeModelFile: String? = null) {
+    private fun savePreferencesFromUi(activeModelFile: String? = selectedModelName) {
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val edit = prefs.edit()
         if (activeModelFile != null) {
@@ -286,7 +309,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupPromptChips() {
-        val chips = mapOf<TextView, String>(
+        val suggestions = mapOf(
             binding.chipPromptSummarize to
                 "Résume en 3 points clairs les avantages d'un moteur LLM local 100% hors-ligne sur smartphone.",
             binding.chipPromptCode to
@@ -296,14 +319,29 @@ class MainActivity : AppCompatActivity() {
             binding.chipPromptReason to
                 "J'ai 3 pommes, j'en achète 5 et j'en mange 2. Combien en reste-t-il ? Explique brièvement."
         )
-        chips.forEach { (view, text) ->
+        suggestions.forEach { (view, prompt) ->
             view.setOnClickListener {
-                binding.etPrompt.setText(text)
+                binding.etPrompt.setText(prompt)
+                binding.etPrompt.setSelection(prompt.length)
             }
         }
     }
 
     private fun setupActions() {
+        binding.btnNewChat.setOnClickListener {
+            if (isGenerating.get()) {
+                try {
+                    llmService?.stopGeneration()
+                } catch (_: Exception) {
+                }
+            }
+            chatMessages.clear()
+            chatAdapter.notifyDataSetChanged()
+            refreshChatVisibility()
+            binding.tvComposerStats.text = ""
+            selectTab(0, animate = true)
+        }
+
         binding.btnStartBind.setOnClickListener {
             startOrReloadService(LLMInferenceService.ACTION_RELOAD_MODEL)
         }
@@ -325,47 +363,30 @@ class MainActivity : AppCompatActivity() {
             selectFileLauncher.launch(arrayOf("*/*"))
         }
 
-        binding.btnReloadModel.setOnClickListener {
-            startOrReloadService(LLMInferenceService.ACTION_RELOAD_MODEL)
-        }
-
-        binding.btnDeleteModel.setOnClickListener {
-            confirmDeleteSelectedModel()
-        }
-
-        binding.btnGenerate.setOnClickListener {
-            val prompt = binding.etPrompt.text.toString()
-            if (prompt.isNotEmpty()) {
-                binding.tvOutput.text = ""
-                generateText(prompt)
+        binding.btnSendOrStop.setOnClickListener {
+            if (isGenerating.get()) {
+                try {
+                    llmService?.stopGeneration()
+                } catch (e: Exception) {
+                    Log.e(TAG, "stopGeneration failed", e)
+                }
             } else {
-                Toast.makeText(this, "Saisis un prompt d'abord", Toast.LENGTH_SHORT).show()
+                val prompt = binding.etPrompt.text.toString().trim()
+                if (prompt.isEmpty()) {
+                    Toast.makeText(this, "Écris un message d'abord", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                binding.etPrompt.setText("")
+                sendUserPrompt(prompt)
             }
         }
 
-        binding.btnStop.setOnClickListener {
-            try {
-                llmService?.stopGeneration()
-            } catch (e: Exception) {
-                Log.e(TAG, "stopGeneration failed", e)
-            }
-        }
-
-        binding.btnBenchmark.setOnClickListener {
+        binding.chipQuickBench.setOnClickListener {
             runFullBenchmark()
         }
 
-        binding.btnTestEmbed.setOnClickListener {
+        binding.chipQuickEmbed.setOnClickListener {
             runEmbeddingSmokeTest()
-        }
-
-        binding.btnCopyOutput.setOnClickListener {
-            copyToClipboard("LLMProvider Output", binding.tvOutput.text.toString(), "Sortie copiée")
-        }
-
-        binding.btnClearOutput.setOnClickListener {
-            binding.tvOutput.text = ""
-            binding.tvStreamStats.text = "TTFT -- · 0.0 tok/s · 0 chunks"
         }
 
         binding.btnClearKv.setOnClickListener {
@@ -383,13 +404,26 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.btnCopyCurl.setOnClickListener {
-            val modelName = selectedModelFileName() ?: "local-gguf"
+            val modelName = selectedModelName ?: "local-gguf"
             val curlCmd = """
                 curl -s http://127.0.0.1:11435/v1/chat/completions \
                   -H "Content-Type: application/json" \
                   -d '{"model":"$modelName","messages":[{"role":"user","content":"Hello"}],"max_tokens":128,"temperature":0.0}'
             """.trimIndent()
             copyToClipboard("LLMProvider cURL", curlCmd, "Requête cURL copiée")
+        }
+    }
+
+    private fun setGeneratingUi(active: Boolean) {
+        isGenerating.set(active)
+        if (active) {
+            binding.btnSendOrStop.setBackgroundResource(R.drawable.bg_circle_stop)
+            binding.ivSendStopIcon.setImageResource(R.drawable.ic_stop)
+            binding.ivSendStopIcon.contentDescription = "Arrêter"
+        } else {
+            binding.btnSendOrStop.setBackgroundResource(R.drawable.bg_circle_send)
+            binding.ivSendStopIcon.setImageResource(R.drawable.ic_send)
+            binding.ivSendStopIcon.contentDescription = "Envoyer"
         }
     }
 
@@ -412,10 +446,10 @@ class MainActivity : AppCompatActivity() {
             if (url.startsWith("content://")) {
                 modelFile.delete()
             } else {
-                Toast.makeText(this, "Modèle déjà installé et sélectionné", Toast.LENGTH_SHORT).show()
-                updateModelList()
-                setSelectedModelText(fileName)
+                Toast.makeText(this, "Modèle déjà installé et activé", Toast.LENGTH_SHORT).show()
+                selectedModelName = fileName
                 savePreferencesFromUi(fileName)
+                updateModelList()
                 return
             }
         }
@@ -450,14 +484,14 @@ class MainActivity : AppCompatActivity() {
             }
             if (success) {
                 Toast.makeText(this@MainActivity, "Modèle prêt : $fileName", Toast.LENGTH_SHORT).show()
-                updateModelList()
-                setSelectedModelText(fileName)
+                selectedModelName = fileName
                 savePreferencesFromUi(fileName)
+                updateModelList()
             } else {
                 val msg = if (downloadCancelled.get()) {
                     "Téléchargement annulé"
                 } else {
-                    "Échec du transfert (vérifie l'URL ou l'en-tête GGUF)"
+                    "Échec du transfert (URL ou en-tête GGUF invalide)"
                 }
                 Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
             }
@@ -469,20 +503,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun confirmDeleteSelectedModel() {
-        val selected = selectedModelFileName()
-        if (selected.isNullOrEmpty()) {
-            Toast.makeText(this, "Aucun modèle sélectionné", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val file = File(filesDir, selected)
+    private fun confirmDeleteModel(fileName: String) {
+        val file = File(filesDir, fileName)
         val sizeMb = file.length() / (1024.0 * 1024.0)
         AlertDialog.Builder(this)
             .setTitle("Supprimer le modèle ?")
-            .setMessage(String.format(Locale.US, "Supprimer %s (%.1f MB) ?", selected, sizeMb))
+            .setMessage(String.format(Locale.US, "Supprimer %s (%.1f MB) ?", fileName, sizeMb))
             .setPositiveButton("Supprimer") { _, _ ->
                 if (file.delete()) {
-                    Toast.makeText(this, "Supprimé : $selected", Toast.LENGTH_SHORT).show()
+                    if (selectedModelName == fileName) selectedModelName = null
+                    Toast.makeText(this, "Supprimé : $fileName", Toast.LENGTH_SHORT).show()
                     updateModelList()
                     updateStorageInfo()
                 }
@@ -492,12 +522,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyEngineConfiguration() {
-        savePreferencesFromUi(selectedModelFileName())
+        savePreferencesFromUi(selectedModelName)
         updateHttpBadge(binding.switchHttpServer.isChecked)
 
         val svc = llmService
         if (!isBound || svc == null) {
-            if (!selectedModelFileName().isNullOrEmpty()) {
+            if (!selectedModelName.isNullOrEmpty()) {
                 startOrReloadService(LLMInferenceService.ACTION_RELOAD_MODEL)
             } else {
                 Toast.makeText(this, "Paramètres enregistrés", Toast.LENGTH_SHORT).show()
@@ -519,7 +549,7 @@ class MainActivity : AppCompatActivity() {
                 action = LLMInferenceService.ACTION_UPDATE_CONFIG
             }
             startService(cfgIntent)
-            Toast.makeText(this, "Configuration RustingStrata appliquée", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Configuration appliquée", Toast.LENGTH_SHORT).show()
             refreshTelemetryOnce()
         } catch (e: Exception) {
             Log.e(TAG, "applyEngineConfiguration failed", e)
@@ -528,13 +558,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startOrReloadService(action: String) {
-        val selectedModel = selectedModelFileName()
-        if (selectedModel.isNullOrEmpty()) {
+        val model = selectedModelName
+        if (model.isNullOrEmpty()) {
             Toast.makeText(this, "Télécharge ou sélectionne un modèle GGUF", Toast.LENGTH_SHORT).show()
             selectTab(1, animate = true)
             return
         }
-        savePreferencesFromUi(selectedModel)
+        savePreferencesFromUi(model)
         val intent = Intent(this, LLMInferenceService::class.java).apply {
             this.action = action
         }
@@ -597,7 +627,7 @@ class MainActivity : AppCompatActivity() {
 
             applyStatusBadge(state, simd)
             if (modelFile != "none") {
-                updateActiveModelSubtitle(modelFile)
+                updateTopModelPill(modelFile)
             }
             updateHttpBadge(httpOn)
 
@@ -638,36 +668,46 @@ class MainActivity : AppCompatActivity() {
         val text: String
         val bgRes: Int
         val colorRes: Int
+        val dotRes: Int
         when (state) {
             "ready" -> {
                 text = "READY · $simd"
-                bgRes = R.drawable.bg_auralis_badge_live
-                colorRes = R.color.auralisLive
+                bgRes = R.drawable.bg_badge_ready
+                colorRes = R.color.colorPrimary
+                dotRes = R.drawable.dot_status_ready
+                binding.tvEmptySubtitle.text = "Moteur RustingStrata ($simd) · Prêt hors-ligne"
             }
             "generating" -> {
-                text = "LIVE · GEN"
-                bgRes = R.drawable.bg_auralis_badge_accent
-                colorRes = R.color.auralisAccent
+                text = "GENERATING"
+                bgRes = R.drawable.bg_badge_gen
+                colorRes = R.color.colorSecondary
+                dotRes = R.drawable.dot_status_gen
             }
             "loading" -> {
                 text = "LOADING"
-                bgRes = R.drawable.bg_auralis_badge_idle
-                colorRes = R.color.auralisWarning
+                bgRes = R.drawable.bg_badge_idle
+                colorRes = R.color.colorWarning
+                dotRes = R.drawable.dot_status_gen
+                binding.tvEmptySubtitle.text = "Chargement du modèle GGUF..."
             }
             "error", "missing" -> {
                 text = state.uppercase(Locale.US)
-                bgRes = R.drawable.bg_auralis_badge_accent
-                colorRes = R.color.auralisDanger
+                bgRes = R.drawable.bg_badge_idle
+                colorRes = R.color.colorDanger
+                dotRes = R.drawable.dot_status_idle
             }
             else -> {
                 text = state.uppercase(Locale.US)
-                bgRes = R.drawable.bg_auralis_badge_idle
-                colorRes = R.color.auralisTextMuted
+                bgRes = R.drawable.bg_badge_idle
+                colorRes = R.color.colorMuted
+                dotRes = R.drawable.dot_status_idle
+                binding.tvEmptySubtitle.text = "Moteur RustingStrata · 100% hors-ligne"
             }
         }
         binding.tvStatusBadge.text = text
         binding.tvStatusBadge.setBackgroundResource(bgRes)
         binding.tvStatusBadge.setTextColor(ContextCompat.getColor(this, colorRes))
+        binding.viewStatusDot.setBackgroundResource(dotRes)
     }
 
     private fun renderIdleState(label: String) {
@@ -675,16 +715,16 @@ class MainActivity : AppCompatActivity() {
         applyStatusBadge(label.lowercase(Locale.US), "Rust")
         val rss = readProcessRssMiB()
         binding.tvMetricMemory.text = if (rss > 0) "$rss MiB" else "-- MiB"
-        updateActiveModelSubtitle(selectedModelFileName())
+        updateTopModelPill(selectedModelName)
     }
 
     private fun updateHttpBadge(enabled: Boolean) {
         binding.tvHttpStatusBadge.text = if (enabled) "HTTP :11435 ON" else "HTTP OFF"
         binding.tvHttpStatusBadge.setBackgroundResource(
-            if (enabled) R.drawable.bg_auralis_badge_live else R.drawable.bg_auralis_badge_idle
+            if (enabled) R.drawable.bg_badge_ready else R.drawable.bg_badge_idle
         )
         binding.tvHttpStatusBadge.setTextColor(
-            ContextCompat.getColor(this, if (enabled) R.color.auralisLive else R.color.auralisTextMuted)
+            ContextCompat.getColor(this, if (enabled) R.color.colorPrimary else R.color.colorMuted)
         )
     }
 
@@ -700,33 +740,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun selectedModelFileName(): String? {
-        val raw = binding.spinnerModels.text?.toString()?.trim().orEmpty()
-        if (raw.isEmpty()) return null
-        return raw.substringBefore(" (").trim()
-    }
-
-    private fun setSelectedModelText(fileName: String) {
-        val f = File(filesDir, fileName)
-        val label = if (f.exists()) {
-            String.format(Locale.US, "%s (%.0f MB)", fileName, f.length() / (1024.0 * 1024.0))
+    private fun updateTopModelPill(fileName: String?) {
+        binding.tvTopModelName.text = if (fileName.isNullOrBlank()) {
+            "Choisir un modèle"
         } else {
-            fileName
-        }
-        binding.spinnerModels.setText(label, false)
-        updateActiveModelSubtitle(fileName)
-    }
-
-    private fun updateActiveModelSubtitle(fileName: String?) {
-        if (fileName.isNullOrBlank()) {
-            binding.tvActiveModelSubtitle.text = "Aucun modèle sélectionné"
-            return
-        }
-        val f = File(filesDir, fileName)
-        binding.tvActiveModelSubtitle.text = if (f.exists()) {
-            String.format(Locale.US, "%s · %.0f MiB", fileName, f.length() / (1024.0 * 1024.0))
-        } else {
-            fileName
+            fileName.removeSuffix(".gguf")
         }
     }
 
@@ -734,24 +752,49 @@ class MainActivity : AppCompatActivity() {
         val files = filesDir.listFiles { _, name -> name.endsWith(".gguf", ignoreCase = true) }
             ?.sortedBy { it.name } ?: emptyList()
         modelFileNames.clear()
-        val display = files.map { f ->
-            modelFileNames.add(f.name)
-            String.format(Locale.US, "%s (%.0f MB)", f.name, f.length() / (1024.0 * 1024.0))
-        }
-        binding.spinnerModels.setAdapter(
-            ArrayAdapter(this, R.layout.item_auralis_dropdown, display)
-        )
-        binding.tvInstalledModelsCount.text = "${modelFileNames.size} GGUF"
+        files.forEach { modelFileNames.add(it.name) }
 
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val activeName = prefs.getString("active_model", null)?.substringAfterLast("/")
-        when {
-            activeName != null && modelFileNames.contains(activeName) -> setSelectedModelText(activeName)
-            modelFileNames.isNotEmpty() -> setSelectedModelText(modelFileNames[0])
-            else -> {
-                binding.spinnerModels.setText("", false)
-                updateActiveModelSubtitle(null)
+        selectedModelName = when {
+            activeName != null && modelFileNames.contains(activeName) -> activeName
+            modelFileNames.isNotEmpty() -> modelFileNames[0]
+            else -> null
+        }
+        updateTopModelPill(selectedModelName)
+
+        binding.tvNoModelsHint.visibility = if (files.isEmpty()) View.VISIBLE else View.GONE
+        binding.llInstalledModels.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+        val marginPx = (8 * resources.displayMetrics.density).toInt()
+
+        files.forEachIndexed { idx, file ->
+            val row = inflater.inflate(R.layout.item_model_row, binding.llInstalledModels, false)
+            val isActive = file.name == selectedModelName
+            row.findViewById<TextView>(R.id.tvRowTitle).text = file.name
+            row.findViewById<TextView>(R.id.tvRowSubtitle).text =
+                String.format(Locale.US, "%.1f MB · GGUF", file.length() / (1024.0 * 1024.0))
+            row.findViewById<TextView>(R.id.tvRowBadge).visibility =
+                if (isActive) View.VISIBLE else View.GONE
+
+            val deleteBtn = row.findViewById<ImageView>(R.id.ivRowAction)
+            deleteBtn.setImageResource(R.drawable.ic_delete)
+            deleteBtn.setOnClickListener { confirmDeleteModel(file.name) }
+
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            if (idx > 0) lp.topMargin = marginPx
+            row.layoutParams = lp
+
+            row.setOnClickListener {
+                selectedModelName = file.name
+                savePreferencesFromUi(file.name)
+                updateModelList()
+                startOrReloadService(LLMInferenceService.ACTION_RELOAD_MODEL)
             }
+            binding.llInstalledModels.addView(row)
         }
     }
 
@@ -763,7 +806,7 @@ class MainActivity : AppCompatActivity() {
                 ?.sumOf { it.length() } ?: 0L) / (1024.0 * 1024.0)
             binding.tvStorageInfo.text = String.format(
                 Locale.US,
-                "%d modèle(s) (%.1f MB) · Espace libre : %.2f GB",
+                "%d GGUF (%.0f MB) · %.1f GB libre",
                 modelFileNames.size, usedModelsMb, freeGb
             )
         } catch (_: Exception) {
@@ -798,28 +841,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun appendChatMessage(msg: ChatMessage) {
+        chatMessages.add(msg)
+        refreshChatVisibility()
+        chatAdapter.notifyItemInserted(chatMessages.size - 1)
+        binding.rvChat.scrollToPosition(chatMessages.size - 1)
+    }
+
     private fun runEmbeddingSmokeTest() {
         val svc = llmService
         if (!isBound || svc == null) {
-            Toast.makeText(this, "Démarre le moteur d'abord", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Appuie sur Démarrer en haut d'abord", Toast.LENGTH_SHORT).show()
             return
         }
+        appendChatMessage(ChatMessage("user", "Test Embedding Q8"))
+        val assistantMsg = ChatMessage("assistant", "", "Mesure en cours...")
+        appendChatMessage(assistantMsg)
+
         val t0 = System.nanoTime()
         svc.embedText("Tree4Five RustingStrata local embedding smoke test.", object : IEmbedCallback.Stub() {
             override fun onEmbedding(q8: ByteArray?, dim: Int) {
                 val ms = (System.nanoTime() - t0) / 1_000_000.0
                 runOnUiThread {
-                    binding.tvOutput.text = String.format(
+                    assistantMsg.content = String.format(
                         Locale.US,
-                        "[Embed Q8 OK]\nDim: %d\nQ8 payload: %d bytes\nLatence: %.2f ms",
-                        dim, q8?.size ?: 0, ms
+                        "Embedding Q8 OK\nDimension : %d\nPayload Q8 : %d octets",
+                        dim, q8?.size ?: 0
                     )
+                    assistantMsg.meta = String.format(Locale.US, "Embed %.2f ms", ms)
+                    chatAdapter.notifyLastStreamingUpdate()
                 }
             }
 
             override fun onError(message: String?) {
                 runOnUiThread {
-                    binding.tvOutput.text = "Erreur embedding : $message"
+                    assistantMsg.content = "Erreur embedding : $message"
+                    assistantMsg.meta = "Erreur"
+                    chatAdapter.notifyLastStreamingUpdate()
                 }
             }
         })
@@ -828,35 +886,30 @@ class MainActivity : AppCompatActivity() {
     private fun runFullBenchmark() {
         val svc = llmService
         if (!isBound || svc == null) {
-            Toast.makeText(this, "Démarre le moteur d'abord", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Appuie sur Démarrer en haut d'abord", Toast.LENGTH_SHORT).show()
             return
         }
         val benchPrompt = "List the numbers 1 to 40 separated by commas, then summarize local AI in one sentence."
-        binding.etPrompt.setText(benchPrompt)
-        binding.tvOutput.text = "[Benchmark RustingStrata]\nMesure embedding Q8...\n"
-
-        val t0 = System.nanoTime()
-        svc.embedText(benchPrompt, object : IEmbedCallback.Stub() {
-            override fun onEmbedding(q8: ByteArray?, dim: Int) {
-                val embedMs = (System.nanoTime() - t0) / 1_000_000.0
-                runOnUiThread {
-                    binding.tvOutput.append(
-                        String.format(Locale.US, "Embed OK (dim=%d, %.2f ms)\nGénération greedy (temp=0)...\n\n", dim, embedMs)
-                    )
-                    generateText(benchPrompt, forceGreedy = true, maxTokensOverride = 160)
-                }
-            }
-
-            override fun onError(message: String?) {
-                runOnUiThread {
-                    binding.tvOutput.append("Embed indisponible ($message)\nGénération greedy...\n\n")
-                    generateText(benchPrompt, forceGreedy = true, maxTokensOverride = 160)
-                }
-            }
-        })
+        sendUserPrompt(benchPrompt, forceGreedy = true, maxTokensOverride = 160)
     }
 
-    private fun generateText(
+    private fun buildInferencePayload(latestPrompt: String): String {
+        val protocol = binding.spinnerProtocol.text.toString().ifBlank { "ChatML" }
+        if (protocol.equals("Raw", ignoreCase = true) || latestPrompt.contains("<|im_start|>")) {
+            return latestPrompt
+        }
+        val arr = JSONArray()
+        val windowStart = maxOf(0, chatMessages.size - 10)
+        for (i in windowStart until chatMessages.size) {
+            val m = chatMessages[i]
+            if (m.content.isNotBlank() && (m.role == "user" || m.role == "assistant")) {
+                arr.put(JSONObject().put("role", m.role).put("content", m.content))
+            }
+        }
+        return JSONObject().put("messages", arr).toString()
+    }
+
+    private fun sendUserPrompt(
         prompt: String,
         forceGreedy: Boolean = false,
         maxTokensOverride: Int? = null
@@ -866,7 +919,12 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Appuie sur Démarrer en haut d'abord", Toast.LENGTH_SHORT).show()
             return
         }
-        savePreferencesFromUi(selectedModelFileName())
+        savePreferencesFromUi(selectedModelName)
+
+        appendChatMessage(ChatMessage("user", prompt))
+        val payload = buildInferencePayload(prompt)
+        val assistantMsg = ChatMessage("assistant", "", "Prefill...")
+        appendChatMessage(assistantMsg)
 
         val nPredict = maxTokensOverride
             ?: binding.etMaxTokens.text?.toString()?.toIntOrNull()?.coerceIn(1, 4096)
@@ -878,7 +936,8 @@ class MainActivity : AppCompatActivity() {
         var firstTokenNs = 0L
         val chunks = AtomicInteger(0)
 
-        binding.tvStreamStats.text = "Prefill..."
+        setGeneratingUi(true)
+        binding.tvComposerStats.text = "Prefill..."
 
         val callback = object : ILLMCallback.Stub() {
             override fun onTokenReceived(token: String) {
@@ -890,22 +949,26 @@ class MainActivity : AppCompatActivity() {
                 val ttftMs = (firstTokenNs - startNs) / 1_000_000.0
                 val genSec = ((now - firstTokenNs) / 1_000_000_000.0).coerceAtLeast(0.01)
                 val tokS = if (n > 1) (n - 1) / genSec else 0.0
+                val statStr = String.format(Locale.US, "TTFT %.0f ms · %.1f tok/s", ttftMs, tokS)
                 runOnUiThread {
-                    binding.tvOutput.append(token)
-                    binding.tvStreamStats.text = String.format(
-                        Locale.US,
-                        "TTFT %.0f ms · %.1f tok/s · %d chunks",
-                        ttftMs, tokS, n
-                    )
+                    assistantMsg.content += token
+                    assistantMsg.meta = statStr
+                    chatAdapter.notifyLastStreamingUpdate()
+                    binding.rvChat.scrollToPosition(chatMessages.size - 1)
+                    binding.tvComposerStats.text = String.format(Locale.US, "%.1f tok/s", tokS)
                 }
             }
 
             override fun onGenerationComplete(fullText: String) {
                 runOnUiThread {
-                    if (binding.tvOutput.text.isEmpty() && fullText.isNotEmpty()) {
-                        binding.tvOutput.text = fullText
+                    if (assistantMsg.content.isEmpty() && fullText.isNotEmpty()) {
+                        assistantMsg.content = fullText
                     }
-                    binding.tvOutput.append("\n\n[Terminé]")
+                    if (assistantMsg.meta == "Prefill...") {
+                        assistantMsg.meta = "Terminé"
+                    }
+                    chatAdapter.notifyLastStreamingUpdate()
+                    setGeneratingUi(false)
                     refreshTelemetryOnce()
                 }
             }
@@ -913,7 +976,7 @@ class MainActivity : AppCompatActivity() {
 
         try {
             svc.generateTextStreamWithParams(
-                prompt,
+                payload,
                 nPredict,
                 temp,
                 LLMInferenceService.DEFAULT_TOP_K,
@@ -923,6 +986,7 @@ class MainActivity : AppCompatActivity() {
                 callback
             )
         } catch (e: Exception) {
+            setGeneratingUi(false)
             Log.e(TAG, "Error calling AIDL", e)
         }
     }

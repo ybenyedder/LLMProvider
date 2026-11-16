@@ -1,10 +1,10 @@
-# Tree4Five LLM Provider 🌲5️⃣ — Auralis + RustingStrata v2.1 Edition
+# Tree4Five LLM Provider 🌲5️⃣ — RustingStrata v2.2 Edition
 
-**Tree4Five LLM Provider** is a high-performance, 100% offline local LLM inference server for Android, powered by a **pure-Rust inference engine derived from [RustingStrata](https://github.com/ybenyedder/RustingStrata)** (`libggufllm.so`) and dressed in a **minimal OLED Auralis UI**. It exposes a backward-compatible cross-app AIDL service (`ILLMService`) **and** an optional embedded OpenAI/Ollama HTTP API server (`127.0.0.1:11435`).
+**Tree4Five LLM Provider** is a high-performance, 100% offline local LLM inference server for Android, powered by a **pure-Rust inference engine derived from [RustingStrata](https://github.com/ybenyedder/RustingStrata)** (`libggufllm.so`) with a **clean Material 3 / Rikka-inspired chat interface**. It exposes a backward-compatible cross-app AIDL service (`ILLMService`) **and** an optional embedded OpenAI/Ollama HTTP API server (`127.0.0.1:11435`).
 
-## ✨ What's New in v2.1.0 (Auralis UI) + v2.0.0 Engine
-- **Auralis Pure-OLED Design System:** Pure `#000000` black canvas, `#111114` tonal cards with `1dp` hairline `#24242C` borders, `#F4F4F5` Liner pearl pill CTAs, crimson `#FA233B` resonance accents, custom waveform emblem, and Android 15/16 edge-to-edge inset handling.
-- **4-Tile Bionic Telemetry + 3-Tab Segmented Switcher:** Live throughput (`tok/s`), native process RSS & model footprint, KV context / prefix cache hits, and speculative N-gram acceptance rate above animated `Studio`, `Modèles`, and `Moteur` panels.
+## ✨ What's New in v2.2.0
+- **Clean Rikka-Style Chat UI:** Deep slate-navy & emerald palette (`#0B0F17`, `#131A26`, `#10B981`, `#22D3EE`), top model selector pill, centered welcome screen with quick prompts, multi-turn conversation bubbles with streaming speed badges, and a floating bottom composer that rises cleanly with the keyboard.
+- **Streamlined Bottom Navigation (`Chat`, `Modèles`, `Moteur`):** One-tap installed GGUF switcher and HuggingFace catalogue rows, plus dedicated Engine Telemetry & Hyperparameter settings.
 - **Pure-Rust Engine (`libggufllm.so`):** Zero-C/C++ `RustingStrata` inference core (`arm64-v8a` NEON & `x86_64` AVX2+FMA `Q8_K` kernels across 25 GGML quant formats, 16 KiB ELF alignment).
 - **Embedded Local HTTP API (`127.0.0.1:11435`):** One-tap OpenAI (`/v1/chat/completions`, `/v1/embeddings`, `/v1/models`) & Ollama (`/api/generate`, `/api/chat`, `/api/tags`, `/health`) gateway with instant cURL copy button.
 

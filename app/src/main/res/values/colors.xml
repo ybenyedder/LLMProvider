@@ -1,39 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Auralis Pure OLED Minimal Palette -->
-    <color name="auralisBg">#000000</color>
-    <color name="auralisPaper">#09090B</color>
-    <color name="auralisSurface1">#111114</color>
-    <color name="auralisSurface2">#18181D</color>
-    <color name="auralisSurface3">#222229</color>
-    <color name="auralisLine">#24242C</color>
-    <color name="auralisLineStrong">#343440</color>
-    <color name="auralisPearl">#F4F4F5</color>
-    <color name="auralisInk">#09090B</color>
-    <color name="auralisAccent">#FA233B</color>
-    <color name="auralisAccentSoft">#2A1015</color>
-    <color name="auralisLive">#30D158</color>
-    <color name="auralisLiveSoft">#0E2416</color>
-    <color name="auralisWarning">#FF9F0A</color>
-    <color name="auralisDanger">#FF453A</color>
-    <color name="auralisTextPrimary">#FFFFFF</color>
-    <color name="auralisTextMuted">#A1A1AA</color>
-    <color name="auralisTextFaint">#71717A</color>
+    <!-- Tree4Five / Rikka-inspired Deep Slate & Emerald Palette -->
+    <color name="colorPrimary">#10B981</color>
+    <color name="colorPrimaryVariant">#059669</color>
+    <color name="colorOnPrimary">#04150F</color>
+    <color name="colorSecondary">#22D3EE</color>
+    <color name="colorSecondaryVariant">#0891B2</color>
+    <color name="colorOnSecondary">#06131A</color>
 
-    <!-- Backward-compatible semantic aliases -->
-    <color name="colorPrimary">@color/auralisPearl</color>
-    <color name="colorPrimaryVariant">@color/auralisSurface3</color>
-    <color name="colorOnPrimary">@color/auralisInk</color>
-    <color name="colorSecondary">@color/auralisAccent</color>
-    <color name="colorSecondaryVariant">@color/auralisAccentSoft</color>
-    <color name="colorOnSecondary">@color/auralisTextPrimary</color>
-    <color name="colorBackground">@color/auralisBg</color>
-    <color name="colorSurface">@color/auralisSurface1</color>
-    <color name="colorSurfaceElevated">@color/auralisSurface2</color>
-    <color name="colorStroke">@color/auralisLine</color>
-    <color name="colorOnBackground">@color/auralisTextPrimary</color>
-    <color name="colorOnSurface">@color/auralisTextPrimary</color>
-    <color name="colorMuted">@color/auralisTextMuted</color>
-    <color name="colorWarning">@color/auralisWarning</color>
-    <color name="colorDanger">@color/auralisDanger</color>
+    <color name="colorBackground">#0B0F17</color>
+    <color name="colorSurface">#131A26</color>
+    <color name="colorSurfaceElevated">#1A2333</color>
+    <color name="colorSurfaceInput">#0F1520</color>
+    <color name="colorNavBar">#0E131D</color>
+    <color name="colorStroke">#1E293B</color>
+    <color name="colorStrokeStrong">#2D3B52</color>
+
+    <color name="colorOnBackground">#F1F5F9</color>
+    <color name="colorOnSurface">#E2E8F0</color>
+    <color name="colorMuted">#94A3B8</color>
+    <color name="colorFaint">#64748B</color>
+
+    <color name="colorReadyBg">#0E2923</color>
+    <color name="colorReadyStroke">#164E3F</color>
+    <color name="colorGenBg">#0C2530</color>
+    <color name="colorGenStroke">#164E63</color>
+
+    <color name="colorWarning">#F59E0B</color>
+    <color name="colorDanger">#EF4444</color>
 </resources>

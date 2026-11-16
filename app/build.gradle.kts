@@ -23,8 +23,8 @@ android {
         applicationId = "com.tree4five.gguf"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "2.1.0"
+        versionCode = 19
+        versionName = "2.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
