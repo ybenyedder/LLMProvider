@@ -58,7 +58,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val uiScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var telemetryJob: Job? = null
+    private var downloadJob: Job? = null
     private val downloadCancelled = AtomicBoolean(false)
+    private val isDownloading = AtomicBoolean(false)
     private val isGenerating = AtomicBoolean(false)
 
     private val modelFileNames = mutableListOf<String>()
@@ -357,6 +359,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnCancelDownload.setOnClickListener {
             downloadCancelled.set(true)
+            binding.tvProgress.text = "Annulation..."
         }
 
         binding.btnImportModel.setOnClickListener {
@@ -427,6 +430,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setDownloadControlsEnabled(enabled: Boolean) {
+        binding.btnDownload.isEnabled = enabled
+        binding.btnImportModel.isEnabled = enabled
+        for (i in 0 until binding.llPresetModels.childCount) {
+            val child = binding.llPresetModels.getChildAt(i)
+            child.isEnabled = enabled
+            child.isClickable = enabled
+            child.alpha = if (enabled) 1.0f else 0.45f
+        }
+    }
+
     private fun startDownloadOrImport(url: String) {
         if (url.isEmpty()) {
             Toast.makeText(this, "Saisis une URL .gguf ou importe un fichier", Toast.LENGTH_SHORT).show()
@@ -442,16 +456,21 @@ class MainActivity : AppCompatActivity() {
         }
         val modelFile = File(filesDir, fileName)
 
-        if (modelFile.exists()) {
-            if (url.startsWith("content://")) {
-                modelFile.delete()
-            } else {
-                Toast.makeText(this, "Modèle déjà installé et activé", Toast.LENGTH_SHORT).show()
-                selectedModelName = fileName
-                savePreferencesFromUi(fileName)
-                updateModelList()
-                return
-            }
+        if (modelFile.exists() && !url.startsWith("content://")) {
+            Toast.makeText(this, "Modèle déjà installé et activé", Toast.LENGTH_SHORT).show()
+            selectedModelName = fileName
+            savePreferencesFromUi(fileName)
+            updateModelList()
+            return
+        }
+
+        if (!isDownloading.compareAndSet(false, true)) {
+            Toast.makeText(this, "Téléchargement déjà en cours — annule d'abord", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (modelFile.exists() && url.startsWith("content://")) {
+            modelFile.delete()
         }
 
         downloadCancelled.set(false)
@@ -459,47 +478,49 @@ class MainActivity : AppCompatActivity() {
         binding.layoutDownloadMeta.visibility = View.VISIBLE
         binding.progressBar.progress = 0
         binding.tvProgress.text = "Connexion..."
-        binding.btnDownload.isEnabled = false
-        binding.btnImportModel.isEnabled = false
+        setDownloadControlsEnabled(false)
 
-        uiScope.launch {
-            val success = ModelDownloader.downloadOrCopyModelDetailed(
-                sourceUri = url,
-                destinationFile = modelFile,
-                context = this@MainActivity,
-                cancelled = downloadCancelled
-            ) { st ->
-                binding.progressBar.progress = st.percent
-                val dlMb = st.downloadedBytes / (1024.0 * 1024.0)
-                val totalStr = if (st.totalBytes > 0) {
-                    String.format(Locale.US, "%.1f MB", st.totalBytes / (1024.0 * 1024.0))
-                } else {
-                    "?"
+        downloadJob = uiScope.launch {
+            try {
+                val success = ModelDownloader.downloadOrCopyModelDetailed(
+                    sourceUri = url,
+                    destinationFile = modelFile,
+                    context = this@MainActivity,
+                    cancelled = downloadCancelled
+                ) { st ->
+                    binding.progressBar.progress = st.percent
+                    val dlMb = st.downloadedBytes / (1024.0 * 1024.0)
+                    val totalStr = if (st.totalBytes > 0) {
+                        String.format(Locale.US, "%.1f MB", st.totalBytes / (1024.0 * 1024.0))
+                    } else {
+                        "?"
+                    }
+                    binding.tvProgress.text = String.format(
+                        Locale.US,
+                        "%d%% · %.1f/%s · %.1f MB/s · ETA %ds",
+                        st.percent, dlMb, totalStr, st.speedMbPerSec, st.etaSeconds
+                    )
                 }
-                binding.tvProgress.text = String.format(
-                    Locale.US,
-                    "%d%% · %.1f/%s · %.1f MB/s · ETA %ds",
-                    st.percent, dlMb, totalStr, st.speedMbPerSec, st.etaSeconds
-                )
-            }
-            if (success) {
-                Toast.makeText(this@MainActivity, "Modèle prêt : $fileName", Toast.LENGTH_SHORT).show()
-                selectedModelName = fileName
-                savePreferencesFromUi(fileName)
-                updateModelList()
-            } else {
-                val msg = if (downloadCancelled.get()) {
-                    "Téléchargement annulé"
+                if (success) {
+                    Toast.makeText(this@MainActivity, "Modèle prêt : $fileName", Toast.LENGTH_SHORT).show()
+                    selectedModelName = fileName
+                    savePreferencesFromUi(fileName)
+                    updateModelList()
                 } else {
-                    "Échec du transfert (URL ou en-tête GGUF invalide)"
+                    val msg = if (downloadCancelled.get()) {
+                        "Téléchargement annulé"
+                    } else {
+                        "Échec du transfert (URL ou en-tête GGUF invalide)"
+                    }
+                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
                 }
-                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+            } finally {
+                isDownloading.set(false)
+                updateStorageInfo()
+                setDownloadControlsEnabled(true)
+                binding.progressBar.visibility = View.GONE
+                binding.layoutDownloadMeta.visibility = View.GONE
             }
-            updateStorageInfo()
-            binding.btnDownload.isEnabled = true
-            binding.btnImportModel.isEnabled = true
-            binding.progressBar.visibility = View.GONE
-            binding.layoutDownloadMeta.visibility = View.GONE
         }
     }
 
