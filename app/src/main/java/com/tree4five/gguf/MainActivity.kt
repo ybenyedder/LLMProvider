@@ -69,14 +69,24 @@ class MainActivity : AppCompatActivity() {
 
     private val modelPresets = listOf(
         ModelPreset(
-            "Qwen3 0.6B",
-            "Q8_0 · 640 MB · Ultra rapide",
-            "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf"
+            "Qwen3 0.6B (Q4_K_M · Recommandé)",
+            "378 MB · Rapide & raisonnement",
+            "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf"
+        ),
+        ModelPreset(
+            "SmolLM2 360M Instruct",
+            "Q4_K_M · 258 MB · Débit max (tok/s)",
+            "https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF/resolve/main/SmolLM2-360M-Instruct-Q4_K_M.gguf"
         ),
         ModelPreset(
             "Qwen2.5 0.5B Instruct",
-            "Q4_K_M · 400 MB · Léger",
+            "Q4_K_M · 400 MB · Ultra fluide",
             "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+        ),
+        ModelPreset(
+            "Llama 3.2 1B Instruct",
+            "Q4_K_M · 770 MB · Polyvalent",
+            "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf"
         ),
         ModelPreset(
             "Qwen2.5 1.5B Instruct",
@@ -84,14 +94,9 @@ class MainActivity : AppCompatActivity() {
             "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
         ),
         ModelPreset(
-            "Qwen3 1.7B",
-            "Q8_0 · 1.8 GB · Qualité",
-            "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf"
-        ),
-        ModelPreset(
-            "SmolLM2 360M Instruct",
-            "Q4_K_M · 258 MB · Minimal",
-            "https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF/resolve/main/SmolLM2-360M-Instruct-Q4_K_M.gguf"
+            "Qwen3 1.7B (Q4_K_M)",
+            "1056 MB · Haute qualité",
+            "https://huggingface.co/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q4_K_M.gguf"
         ),
         ModelPreset(
             "Nomic Embed v1.5",

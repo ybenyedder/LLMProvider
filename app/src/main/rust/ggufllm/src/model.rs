@@ -434,9 +434,16 @@ impl<'a> Model<'a> {
                     s.k.copy_from_slice(&s.qkv[q_dim..q_dim + kv_dim]);
                     s.v.copy_from_slice(&s.qkv[q_dim + kv_dim..q_dim + 2 * kv_dim]);
                 } else {
-                    simd::matvec_with_q8k(&self.t(il, "attn_q.weight"), &s.xq, &s.h, &mut s.q);
-                    simd::matvec_with_q8k(&self.t(il, "attn_k.weight"), &s.xq, &s.h, &mut s.k);
-                    simd::matvec_with_q8k(&self.t(il, "attn_v.weight"), &s.xq, &s.h, &mut s.v);
+                    simd::matvec_qkv_with_q8k(
+                        &self.t(il, "attn_q.weight"),
+                        &self.t(il, "attn_k.weight"),
+                        &self.t(il, "attn_v.weight"),
+                        &s.xq,
+                        &s.h,
+                        &mut s.q,
+                        &mut s.k,
+                        &mut s.v,
+                    );
                     if let Some(b) = &lc.q_bias {
                         for (a, &bb) in s.q.iter_mut().zip(b) {
                             *a += bb;

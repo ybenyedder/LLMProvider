@@ -1363,6 +1363,125 @@ mod neon_dotprod {
     pub fn dot4_q4k(r0: &[u8], r1: &[u8], r2: &[u8], r3: &[u8], xq: &[Q8K]) -> [f32; 4] {
         unsafe { dot4_q4k_impl(r0, r1, r2, r3, xq) }
     }
+
+    #[target_feature(enable = "dotprod")]
+    unsafe fn dot4_q6k_impl(
+        r0: &[u8],
+        r1: &[u8],
+        r2: &[u8],
+        r3: &[u8],
+        xq: &[Q8K],
+    ) -> [f32; 4] {
+        unsafe {
+            let m4 = vdupq_n_u8(0x0F);
+            let m2 = vdupq_n_u8(0x03);
+            let off32 = vdupq_n_s8(32);
+            let zero = vdupq_n_s32(0);
+            let mut acc_f = vdupq_n_f32(0.0);
+            let n_blocks = r0.len() / 210;
+            let ps = [r0.as_ptr(), r1.as_ptr(), r2.as_ptr(), r3.as_ptr()];
+
+            for bi in 0..n_blocks {
+                let y = &xq[bi];
+                let off = bi * 210;
+                let mut sumi = [0i32; 4];
+
+                for n in 0..2 {
+                    let yp = y.qs.as_ptr().add(128 * n);
+                    for half in 0..2 {
+                        let h_off = 16 * half;
+                        let q1 = vld1q_s8(yp.add(h_off));
+                        let q2 = vld1q_s8(yp.add(32 + h_off));
+                        let q3 = vld1q_s8(yp.add(64 + h_off));
+                        let q4 = vld1q_s8(yp.add(96 + h_off));
+
+                        let mut a1 = [zero; 4];
+                        let mut a2 = [zero; 4];
+                        let mut a3 = [zero; 4];
+                        let mut a4 = [zero; 4];
+
+                        for ri in 0..4 {
+                            let bp = ps[ri].add(off);
+                            let ql = bp.add(64 * n);
+                            let qh = bp.add(128 + 32 * n);
+                            let la = vld1q_u8(ql.add(h_off));
+                            let lb = vld1q_u8(ql.add(32 + h_off));
+                            let h = vld1q_u8(qh.add(h_off));
+                            let w1 = vsubq_s8(
+                                vreinterpretq_s8_u8(vorrq_u8(
+                                    vandq_u8(la, m4),
+                                    vshlq_n_u8::<4>(vandq_u8(h, m2)),
+                                )),
+                                off32,
+                            );
+                            let w2 = vsubq_s8(
+                                vreinterpretq_s8_u8(vorrq_u8(
+                                    vandq_u8(lb, m4),
+                                    vshlq_n_u8::<4>(vandq_u8(vshrq_n_u8::<2>(h), m2)),
+                                )),
+                                off32,
+                            );
+                            let w3 = vsubq_s8(
+                                vreinterpretq_s8_u8(vorrq_u8(
+                                    vshrq_n_u8::<4>(la),
+                                    vshlq_n_u8::<4>(vandq_u8(vshrq_n_u8::<4>(h), m2)),
+                                )),
+                                off32,
+                            );
+                            let w4 = vsubq_s8(
+                                vreinterpretq_s8_u8(vorrq_u8(
+                                    vshrq_n_u8::<4>(lb),
+                                    vshlq_n_u8::<4>(vshrq_n_u8::<6>(h)),
+                                )),
+                                off32,
+                            );
+                            a1[ri] = vdotq_s32(zero, w1, q1);
+                            a2[ri] = vdotq_s32(zero, w2, q2);
+                            a3[ri] = vdotq_s32(zero, w3, q3);
+                            a4[ri] = vdotq_s32(zero, w4, q4);
+                        }
+
+                        let d1 = vpaddq_s32(vpaddq_s32(a1[0], a1[1]), vpaddq_s32(a1[2], a1[3]));
+                        let d2 = vpaddq_s32(vpaddq_s32(a2[0], a2[1]), vpaddq_s32(a2[2], a2[3]));
+                        let d3 = vpaddq_s32(vpaddq_s32(a3[0], a3[1]), vpaddq_s32(a3[2], a3[3]));
+                        let d4 = vpaddq_s32(vpaddq_s32(a4[0], a4[1]), vpaddq_s32(a4[2], a4[3]));
+
+                        let mut arr1 = [0i32; 4];
+                        let mut arr2 = [0i32; 4];
+                        let mut arr3 = [0i32; 4];
+                        let mut arr4 = [0i32; 4];
+                        vst1q_s32(arr1.as_mut_ptr(), d1);
+                        vst1q_s32(arr2.as_mut_ptr(), d2);
+                        vst1q_s32(arr3.as_mut_ptr(), d3);
+                        vst1q_s32(arr4.as_mut_ptr(), d4);
+
+                        for ri in 0..4 {
+                            let sc = std::slice::from_raw_parts(ps[ri].add(off + 192 + 8 * n), 8);
+                            sumi[ri] += (sc[half] as i8 as i32) * arr1[ri]
+                                + (sc[2 + half] as i8 as i32) * arr2[ri]
+                                + (sc[4 + half] as i8 as i32) * arr3[ri]
+                                + (sc[6 + half] as i8 as i32) * arr4[ri];
+                        }
+                    }
+                }
+
+                let ds = [
+                    d16(std::slice::from_raw_parts(ps[0].add(off + 208), 2)) * y.d,
+                    d16(std::slice::from_raw_parts(ps[1].add(off + 208), 2)) * y.d,
+                    d16(std::slice::from_raw_parts(ps[2].add(off + 208), 2)) * y.d,
+                    d16(std::slice::from_raw_parts(ps[3].add(off + 208), 2)) * y.d,
+                ];
+                acc_f = vfmaq_f32(acc_f, vld1q_f32(ds.as_ptr()), vcvtq_f32_s32(vld1q_s32(sumi.as_ptr())));
+            }
+
+            let mut out = [0f32; 4];
+            vst1q_f32(out.as_mut_ptr(), acc_f);
+            out
+        }
+    }
+    pub fn dot4_q6k(r0: &[u8], r1: &[u8], r2: &[u8], r3: &[u8], xq: &[Q8K]) -> [f32; 4] {
+        unsafe { dot4_q6k_impl(r0, r1, r2, r3, xq) }
+    }
 }
 
 // ============================================================================
@@ -2215,6 +2334,7 @@ pub fn int_dot4(ty: GgmlType) -> Option<Dot4Fn> {
             return match ty {
                 GgmlType::Q8_0 => Some(neon_dotprod::dot4_q8_0),
                 GgmlType::Q4K => Some(neon_dotprod::dot4_q4k),
+                GgmlType::Q6K => Some(neon_dotprod::dot4_q6k),
                 _ => None,
             };
         }
@@ -2289,6 +2409,87 @@ pub fn matvec_with_q8k(t: &Tensor, xq: &[Q8K], x: &[f32], y: &mut [f32]) {
             *v = dot_float_row(t.ty, &t.data[r * rb..(r + 1) * rb], x, &mut buf);
         }
     }
+}
+
+#[inline(always)]
+fn eval_chunk_q8k(t: &Tensor, xq: &[Q8K], x: &[f32], base: usize, ys: &mut [f32]) {
+    let rb = t.row_bytes();
+    if let Some(dot) = int_dot(t.ty) {
+        let dot4 = int_dot4(t.ty);
+        let len = ys.len();
+        let mut k = 0usize;
+        if let Some(d4) = dot4 {
+            while k + 4 <= len {
+                let r = base + k;
+                let res = d4(
+                    &t.data[r * rb..(r + 1) * rb],
+                    &t.data[(r + 1) * rb..(r + 2) * rb],
+                    &t.data[(r + 2) * rb..(r + 3) * rb],
+                    &t.data[(r + 3) * rb..(r + 4) * rb],
+                    xq,
+                );
+                ys[k] = res[0];
+                ys[k + 1] = res[1];
+                ys[k + 2] = res[2];
+                ys[k + 3] = res[3];
+                k += 4;
+            }
+        }
+        while k < len {
+            let r = base + k;
+            ys[k] = dot(&t.data[r * rb..(r + 1) * rb], xq);
+            k += 1;
+        }
+    } else {
+        let mut buf = vec![0f32; t.cols];
+        for (k, v) in ys.iter_mut().enumerate() {
+            let r = base + k;
+            *v = dot_float_row(t.ty, &t.data[r * rb..(r + 1) * rb], x, &mut buf);
+        }
+    }
+}
+
+/// Computes `Q`, `K`, `V` projections sharing one `Q8K` input inside a single Rayon barrier.
+#[allow(clippy::too_many_arguments)]
+pub fn matvec_qkv_with_q8k(
+    tq: &Tensor,
+    tk: &Tensor,
+    tv: &Tensor,
+    xq: &[Q8K],
+    x: &[f32],
+    yq: &mut [f32],
+    yk: &mut [f32],
+    yv: &mut [f32],
+) {
+    let n_threads = rayon::current_num_threads();
+    let total_rows = tq.rows + tk.rows + tv.rows;
+    if total_rows * tq.cols < 16_384 || n_threads <= 1 {
+        eval_chunk_q8k(tq, xq, x, 0, yq);
+        eval_chunk_q8k(tk, xq, x, 0, yk);
+        eval_chunk_q8k(tv, xq, x, 0, yv);
+        return;
+    }
+    let cq = (((tq.rows / (n_threads * 2)).clamp(16, 512)) & !3).max(4);
+    let ck = (((tk.rows / (n_threads * 2)).clamp(16, 512)) & !3).max(4);
+    let cv = (((tv.rows / (n_threads * 2)).clamp(16, 512)) & !3).max(4);
+    yq.par_chunks_mut(cq)
+        .enumerate()
+        .map(|(c, ys)| (0u8, c * cq, ys))
+        .chain(
+            yk.par_chunks_mut(ck)
+                .enumerate()
+                .map(|(c, ys)| (1u8, c * ck, ys)),
+        )
+        .chain(
+            yv.par_chunks_mut(cv)
+                .enumerate()
+                .map(|(c, ys)| (2u8, c * cv, ys)),
+        )
+        .for_each(|(which, base, ys)| match which {
+            0 => eval_chunk_q8k(tq, xq, x, base, ys),
+            1 => eval_chunk_q8k(tk, xq, x, base, ys),
+            _ => eval_chunk_q8k(tv, xq, x, base, ys),
+        });
 }
 
 /// Fused SwiGLU / GeGLU MLP first stage: computes `act[r] = act_fn(gate[r] · x) * (up[r] · x)`
