@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="ybenyedder/LLMProvider"
-TAG="${1:-${TAG:-v2.4.0}}"
+TAG="${1:-${TAG:-v2.4.1}}"
 VERSION="${TAG#v}"
 AAB_FILE="$ROOT_DIR/LLMProvider-release-${VERSION}.aab"
 APK_FILE="$ROOT_DIR/app/build/outputs/apk/release/LLMProvider-release-${VERSION}.apk"
